@@ -1,24 +1,21 @@
 import { Routes, Route } from 'react-router-dom';
+import ProtectedRoute from './ProtectedRoute';
+import LoginPage from '../pages/LoginPage';
 import HealthPage from '../pages/HealthPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
-/**
- * Central route table for the application.
- *
- * Maps URL paths to the page components that render them. Keeping every route
- * in ONE place means the app's navigational structure can be understood at a
- * glance and extended in a single, predictable location as modules are added.
- *
- * The <BrowserRouter> that enables routing is mounted higher up, in main.jsx,
- * so this component only declares the route-to-page mapping.
- */
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Home: the system health screen (the app's only screen for now). */}
-      <Route path="/" element={<HealthPage />} />
+      {/* Public */}
+      <Route path="/login" element={<LoginPage />} />
 
-      {/* Catch-all: any unmatched URL renders the 404 page. */}
+      {/* Protected — guarded once; children render via <Outlet /> */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<HealthPage />} />
+      </Route>
+
+      {/* Catch-all */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

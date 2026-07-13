@@ -12,4 +12,10 @@
 export const API_PATHS = Object.freeze({
   /** Public liveness check (GET). */
   HEALTH: '/health',
+
+  /** Login — exchanges credentials for a JWT (POST). */
+  AUTH_LOGIN: '/v1/auth/login',
+
+  /** Current authenticated user (GET). */
+  AUTH_ME: '/v1/auth/me',
 });
