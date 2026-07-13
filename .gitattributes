@@ -1,0 +1,18 @@
+# Normalize line endings: store text as LF in the repo, check out
+# native on each OS. Prevents "entire file changed" diffs caused by
+# Windows CRLF vs. Unix LF differences.
+* text=auto eol=lf
+
+# Scripts that MUST stay LF even on Windows checkouts
+*.sh   text eol=lf
+mvnw   text eol=lf
+
+# Windows batch files must stay CRLF
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
+
+# Binary files — never touch these
+*.jar  binary
+*.png  binary
+*.jpg  binary
+*.ico  binary

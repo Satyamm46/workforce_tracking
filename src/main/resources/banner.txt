@@ -1,0 +1,12 @@
+${AnsiColor.BRIGHT_CYAN}
+ ___ _   _ ____ _____ ___ _____ _   _ _____ _____
+|_ _| \ | / ___|_   _|_ _|_   _| | | |_   _| ____|
+ | ||  \| \___ \ | |  | |  | | | | | | | | |  _|
+ | || |\  |___) || |  | |  | | | |_| | | | | |___
+|___|_| \_|____/ |_| |___| |_|  \___/  |_| |_____|
+
+${AnsiColor.BRIGHT_YELLOW} W O R K F O R C E   T R A C K I N G   S Y S T E M
+${AnsiColor.BRIGHT_GREEN} :: Institute Workforce & Attendance :: ${application.version:v0.0.1-SNAPSHOT}
+${AnsiColor.BRIGHT_BLACK} :: Spring Boot :: ${spring-boot.version}
+${AnsiColor.BRIGHT_BLACK} :: Active Profile :: ${spring.profiles.active:default}
+${AnsiColor.DEFAULT}

@@ -1,0 +1,55 @@
+# ==========================================================
+#  Java / Maven (backend)
+# ==========================================================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Compiled output
+*.class
+
+# Log files
+logs/
+*.log
+
+# ==========================================================
+#  Spring Boot — local secrets & overrides
+# ==========================================================
+# Never commit machine-specific or secret-bearing overrides.
+application-local.properties
+*.env
+.env
+
+# ==========================================================
+#  IDE — IntelliJ IDEA
+# ==========================================================
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# ==========================================================
+#  IDE — Eclipse / VS Code
+# ==========================================================
+.settings/
+.project
+.classpath
+.vscode/
+bin/
+
+# ==========================================================
+#  Node / React (frontend — added preemptively)
+# ==========================================================
+node_modules/
+dist/
+dist-ssr/
+*.local
+frontend/node_modules/
+frontend/dist/
+
+# ==========================================================
+#  OS junk
+# ==========================================================
+.DS_Store
+Thumbs.db
