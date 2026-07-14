@@ -7,6 +7,10 @@ import AttendanceAdminPage from '../pages/AttendanceAdminPage';
 import UsersPage from '../pages/UsersPage';
 import CreateUserPage from '../pages/CreateUserPage';
 import NotFoundPage from '../pages/NotFoundPage';
+import MyLeavesPage from '../pages/MyLeavesPage';
+import LeaveAdminPage from '../pages/LeaveAdminPage';
+import MyLecturesPage from '../pages/MyLecturesPage';
+import LectureAdminPage from '../pages/LectureAdminPage';
 
 const AppRoutes = () => {
   return (
@@ -21,6 +25,10 @@ const AppRoutes = () => {
         <Route path="/admin/attendance" element={<AttendanceAdminPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/users/new" element={<CreateUserPage />} />
+         <Route path="/leaves" element={<MyLeavesPage />} />
+        <Route path="/admin/leaves" element={<LeaveAdminPage />} />
+        <Route path="/lectures" element={<MyLecturesPage />} />
+        <Route path="/admin/lectures" element={<LectureAdminPage />} />
       </Route>
 
       {/* Catch-all */}

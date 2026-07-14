@@ -34,4 +34,13 @@ public interface AttendanceService {
 
     /** Returns a page of ALL users' attendance for the given day (admin view). */
     PagedResponse<AttendanceResponse> getAttendanceByDate(LocalDate date, int page, int size);
+
+        /**
+     * Creates ON_LEAVE attendance records for each day in the range that has
+     * no record yet. Called by the leave module when a request is approved;
+     * participates in the caller's transaction.
+     */
+    void markLeaveDays(com.institute.workforce_tracking.entity.User user,
+                       java.time.LocalDate startDate, java.time.LocalDate endDate);
+
 }

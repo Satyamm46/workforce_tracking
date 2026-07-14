@@ -18,5 +18,8 @@ public enum AttendanceStatus {
     ON_BREAK,
 
     /** The working day has ended (clocked out). */
-    CHECKED_OUT
+    CHECKED_OUT,
+
+    /** The employee is on approved leave this day — no login/logout expected. */
+    ON_LEAVE
 }

@@ -40,13 +40,18 @@ public class AttendanceMapper {
      * Final stored minutes once clocked out; otherwise a live snapshot:
      * (now − login) − breaks, floored at zero.
      */
-    private long calculateWorkingMinutes(Attendance attendance) {
+        private long calculateWorkingMinutes(Attendance attendance) {
         if (attendance.getWorkingMinutes() != null) {
             return attendance.getWorkingMinutes();
+        }
+        if (attendance.getLoginTime() == null) {
+            return 0; // generated leave record — no working time
         }
         long elapsedMinutes = Duration
                 .between(attendance.getLoginTime(), DateTimeUtil.now())
                 .toMinutes();
         return Math.max(elapsedMinutes - attendance.getTotalBreakMinutes(), 0);
     }
-}
+
+        
+    }

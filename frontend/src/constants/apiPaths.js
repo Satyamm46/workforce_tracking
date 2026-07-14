@@ -15,6 +15,15 @@ export const API_PATHS = Object.freeze({
   /** User management base path. Item paths append `/{id}`. */
   USERS: '/v1/users',
 
+    /** Leave endpoints. */
+  LEAVES: '/v1/leaves',
+  LEAVES_ME: '/v1/leaves/me',
+  LEAVES_ME_BALANCE: '/v1/leaves/me/balance',
+
+    /** Lecture endpoints. */
+  LECTURES: '/v1/lectures',
+  LECTURES_ME: '/v1/lectures/me',
+
   /** Attendance endpoints. */
   ATTENDANCE: '/v1/attendance',
   ATTENDANCE_CLOCK_OUT: '/v1/attendance/clock-out',

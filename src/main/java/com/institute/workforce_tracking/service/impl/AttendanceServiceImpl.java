@@ -173,6 +173,23 @@ public class AttendanceServiceImpl implements AttendanceService {
         return PagedResponse.from(result);
     }
 
+        @Override
+    @Transactional
+    public void markLeaveDays(User user, LocalDate startDate, LocalDate endDate) {
+        for (LocalDate day = startDate; !day.isAfter(endDate); day = day.plusDays(1)) {
+            if (attendanceRepository.findByUserAndWorkDate(user, day).isEmpty()) {
+                Attendance attendance = new Attendance();
+                attendance.setUser(user);
+                attendance.setWorkDate(day);
+                attendance.setStatus(AttendanceStatus.ON_LEAVE);
+                attendance.setWorkingMinutes(0);
+                attendanceRepository.save(attendance);
+            }
+            // A day that already has a record (the employee worked) is left untouched.
+        }
+    }
+
+
     /**
      * Closes the open break (if any) at the given end time: stores its
      * duration and accumulates it onto the attendance's total.

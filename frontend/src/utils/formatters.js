@@ -20,6 +20,18 @@ export const formatMinutes = (totalMinutes) => {
 };
 
 /**
+ * Formats a LocalTime string from the API ("10:30:00" or "10:30") as "10:30".
+ * Returns an em dash for null/undefined.
+ */
+export const formatTimeOfDay = (time) => {
+  if (!time) {
+    return '—';
+  }
+  return time.slice(0, 5);
+};
+
+
+/**
  * Extracts the HH:MM time from a backend LocalDateTime string,
  * e.g. "2026-07-14T09:05:23" -> "09:05". Returns a dash for null/absent.
  *

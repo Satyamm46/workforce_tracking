@@ -54,8 +54,7 @@ public class Attendance extends BaseEntity {
     @Column(name = "work_date", nullable = false)
     private LocalDate workDate;
 
-    /** First login of the day (institute time zone). */
-    @Column(nullable = false)
+     /** First login of the day; null for generated leave records. */
     private LocalDateTime loginTime;
 
     /** Clock-out time; null while the day is still in progress. */

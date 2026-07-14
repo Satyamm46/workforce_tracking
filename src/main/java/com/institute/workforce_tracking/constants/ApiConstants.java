@@ -20,4 +20,10 @@ public final class ApiConstants {
 
     /** Base path for attendance endpoints (reached at /api/v1/attendance). */
     public static final String ATTENDANCE_BASE = API_VERSION_V1 + "/attendance";
+
+    /** Base path for leave endpoints (reached at /api/v1/leaves). */
+    public static final String LEAVES_BASE = API_VERSION_V1 + "/leaves";
+
+    /** Base path for lecture endpoints (reached at /api/v1/lectures). */
+    public static final String LECTURES_BASE = API_VERSION_V1 + "/lectures";
 }
