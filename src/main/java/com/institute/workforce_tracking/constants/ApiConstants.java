@@ -14,4 +14,10 @@ public final class ApiConstants {
 
     /** Base path for authentication endpoints (reached at /api/v1/auth). */
     public static final String AUTH_BASE = API_VERSION_V1 + "/auth";
+
+    /** Base path for user management endpoints (reached at /api/v1/users). */
+    public static final String USERS_BASE = API_VERSION_V1 + "/users";
+
+    /** Base path for attendance endpoints (reached at /api/v1/attendance). */
+    public static final String ATTENDANCE_BASE = API_VERSION_V1 + "/attendance";
 }

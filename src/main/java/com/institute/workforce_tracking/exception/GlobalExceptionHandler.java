@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,14 +20,9 @@ import jakarta.validation.ConstraintViolationException;
 /**
  * Centralized exception handling for the entire application.
  *
- * <p>Annotated with {@link RestControllerAdvice}, this class intercepts
- * exceptions thrown by any controller (and the layers beneath it) and
- * converts them into the standard {@link ErrorResponse} shape. This keeps
- * error handling in ONE place — controllers and services never build error
- * responses themselves.</p>
- *
- * <p>Handlers are ordered from most specific to most general. Spring picks
- * the most specific matching handler for a thrown exception.</p>
+ * <p>Intercepts exceptions thrown by any controller (and the layers beneath it)
+ * and converts them into the standard {@link ErrorResponse} shape, so every
+ * error in the system looks identical to the client.</p>
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -34,11 +30,9 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /**
-     * Handles all of our custom business exceptions in one place.
-     *
-     * <p>Because every custom exception extends {@link BusinessException} and
-     * carries its own status + error code, we can translate the entire family
-     * with a single handler — no per-exception method needed.</p>
+     * Handles all custom business exceptions (ResourceNotFound, BadRequest,
+     * InvalidCredentials, DuplicateResource, …) in one place — each carries its
+     * own HTTP status and error code.
      */
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(
@@ -56,12 +50,8 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles validation failures on {@code @Valid} request bodies (DTOs).
-     *
-     * <p>Spring throws {@link MethodArgumentNotValidException} when a
-     * {@code @RequestBody @Valid} object fails its annotations. We collect
-     * every field error into the {@code details} list so the client can show
-     * per-field feedback.</p>
+     * Handles validation failures on {@code @Valid @RequestBody} DTOs,
+     * collecting every field error into the details list.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
@@ -85,8 +75,7 @@ public class GlobalExceptionHandler {
 
     /**
      * Handles validation failures on {@code @RequestParam} / {@code @PathVariable}
-     * constraints (e.g. {@code @Min}, {@code @NotBlank} directly on method
-     * parameters), which surface as {@link ConstraintViolationException}.
+     * constraints, which surface as ConstraintViolationException.
      */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolation(
@@ -109,11 +98,28 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Last-resort handler for any exception not caught above.
-     *
-     * <p>Returns a generic 500 so we never leak stack traces or internal
-     * details to the client. The full exception is logged server-side at
-     * ERROR level with its stack trace for diagnosis.</p>
+     * Handles malformed request bodies — invalid JSON, or a value that cannot
+     * be deserialized (e.g. an unknown enum constant for a role). This is the
+     * client's error, so it maps to 400 rather than the catch-all 500.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleNotReadable(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
+
+        log.warn("Malformed request body at [{}]: {}", request.getRequestURI(), ex.getMessage());
+
+        ErrorResponse body = ErrorResponse.of(
+                "Request body is malformed or contains an invalid value.",
+                "MALFORMED_REQUEST",
+                HttpStatus.BAD_REQUEST.value(),
+                request.getRequestURI());
+
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    /**
+     * Last-resort handler for any exception not caught above. Returns a generic
+     * 500 without leaking internal details; the full stack trace is logged.
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpectedException(

@@ -1,13 +1,6 @@
 /**
- * Registry of backend API endpoint paths.
- *
- * These are RELATIVE paths, appended to `API_BASE_URL` by the Axios client.
- * Example: `HEALTH` ('/health') + base ('http://localhost:8080/api')
- *          => 'http://localhost:8080/api/health'.
- *
- * Centralizing paths here is the frontend counterpart to the backend's
- * `ApiConstants`: components and services reference these names, never raw
- * URL strings, so an endpoint change is made in exactly one place.
+ * Registry of backend API endpoint paths, appended to API_BASE_URL by the
+ * Axios client.
  */
 export const API_PATHS = Object.freeze({
   /** Public liveness check (GET). */
@@ -18,4 +11,15 @@ export const API_PATHS = Object.freeze({
 
   /** Current authenticated user (GET). */
   AUTH_ME: '/v1/auth/me',
+
+  /** User management base path. Item paths append `/{id}`. */
+  USERS: '/v1/users',
+
+  /** Attendance endpoints. */
+  ATTENDANCE: '/v1/attendance',
+  ATTENDANCE_CLOCK_OUT: '/v1/attendance/clock-out',
+  ATTENDANCE_ME: '/v1/attendance/me',
+  ATTENDANCE_ME_TODAY: '/v1/attendance/me/today',
+  BREAK_START: '/v1/attendance/break/start',
+  BREAK_END: '/v1/attendance/break/end',
 });
