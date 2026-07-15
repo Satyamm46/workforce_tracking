@@ -3,6 +3,7 @@ package com.institute.workforce_tracking.service.impl;
 import java.time.LocalDate;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +19,7 @@ import com.institute.workforce_tracking.dto.response.PagedResponse;
 import com.institute.workforce_tracking.entity.LeaveRequest;
 import com.institute.workforce_tracking.entity.User;
 import com.institute.workforce_tracking.enums.LeaveStatus;
+import com.institute.workforce_tracking.event.LeaveDecidedEvent;
 import com.institute.workforce_tracking.exception.BadRequestException;
 import com.institute.workforce_tracking.exception.ResourceNotFoundException;
 import com.institute.workforce_tracking.mapper.LeaveMapper;
@@ -30,6 +32,11 @@ import com.institute.workforce_tracking.util.PageUtils;
 
 /**
  * Default implementation of {@link LeaveService}.
+ *
+ * <p>Approval integrates with attendance through a DIRECT call (the ON_LEAVE
+ * records must be created atomically with the approval), while notification of
+ * the decision is announced through an EVENT (delivered after commit; a
+ * notification failure must never affect the decision).</p>
  */
 @Service
 public class LeaveServiceImpl implements LeaveService {
@@ -38,17 +45,20 @@ public class LeaveServiceImpl implements LeaveService {
     private final UserRepository userRepository;
     private final LeaveMapper leaveMapper;
     private final AttendanceService attendanceService;
+    private final ApplicationEventPublisher eventPublisher;
     private final int annualAllowanceDays;
 
     public LeaveServiceImpl(LeaveRequestRepository leaveRepository,
                             UserRepository userRepository,
                             LeaveMapper leaveMapper,
                             AttendanceService attendanceService,
+                            ApplicationEventPublisher eventPublisher,
                             @Value("${app.leave.annual-allowance-days}") int annualAllowanceDays) {
         this.leaveRepository = leaveRepository;
         this.userRepository = userRepository;
         this.leaveMapper = leaveMapper;
         this.attendanceService = attendanceService;
+        this.eventPublisher = eventPublisher;
         this.annualAllowanceDays = annualAllowanceDays;
     }
 
@@ -142,6 +152,12 @@ public class LeaveServiceImpl implements LeaveService {
         // fail together. This is why it is a direct call, not an event.
         attendanceService.markLeaveDays(leave.getUser(), leave.getStartDate(), leave.getEndDate());
 
+        // Announce the decision. Delivered AFTER COMMIT to the notification
+        // listener — a notification failure can never affect the approval.
+        eventPublisher.publishEvent(new LeaveDecidedEvent(
+                leave.getUser().getId(), leave.getUser().getEmail(), true,
+                leave.getStartDate(), leave.getEndDate()));
+
         return leaveMapper.toLeaveResponse(leaveRepository.save(leave));
     }
 
@@ -154,6 +170,10 @@ public class LeaveServiceImpl implements LeaveService {
         leave.setStatus(LeaveStatus.REJECTED);
         leave.setDecidedBy(findUserByEmail(adminEmail));
         leave.setDecisionComment(decision.comment());
+
+        eventPublisher.publishEvent(new LeaveDecidedEvent(
+                leave.getUser().getId(), leave.getUser().getEmail(), false,
+                leave.getStartDate(), leave.getEndDate()));
 
         return leaveMapper.toLeaveResponse(leaveRepository.save(leave));
     }

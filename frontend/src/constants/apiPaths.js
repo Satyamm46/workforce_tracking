@@ -24,6 +24,12 @@ export const API_PATHS = Object.freeze({
   LECTURES: '/v1/lectures',
   LECTURES_ME: '/v1/lectures/me',
 
+    /** Notification endpoints. */
+  NOTIFICATIONS_ME: '/v1/notifications/me',
+  NOTIFICATIONS_UNREAD_COUNT: '/v1/notifications/me/unread-count',
+  NOTIFICATIONS_READ_ALL: '/v1/notifications/me/read-all',
+
+
   /** Attendance endpoints. */
   ATTENDANCE: '/v1/attendance',
   ATTENDANCE_CLOCK_OUT: '/v1/attendance/clock-out',
