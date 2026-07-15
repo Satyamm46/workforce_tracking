@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import com.institute.workforce_tracking.entity.Attendance;
 import com.institute.workforce_tracking.entity.User;
+import com.institute.workforce_tracking.enums.AttendanceStatus;
 
 /**
  * Data-access layer for {@link Attendance} records.
@@ -58,4 +59,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
      */
     @EntityGraph(attributePaths = "user")
     Page<Attendance> findByWorkDate(LocalDate workDate, Pageable pageable);
+
+    /** How many attendance records exist for a day in a given status. */
+    long countByWorkDateAndStatus(LocalDate workDate, AttendanceStatus status);
+
 }

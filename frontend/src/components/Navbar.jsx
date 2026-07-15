@@ -5,23 +5,37 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useHealth } from '../context/HealthContext';
 import { attendanceService } from '../services/attendanceService';
+import NotificationBell from './NotificationBell';
 import StatusIndicator from './StatusIndicator';
 
 /** Roles permitted to use management screens — mirrors the backend rules. */
 const MANAGER_ROLES = ['SUPER_ADMIN', 'ADMIN'];
 
 /**
- * Top navigation bar with three visibility tiers: links for every logged-in
- * user, teacher-only links, and manager-only links. Gating here is UX; the
- * backend @PreAuthorize rules are the real enforcement.
+ * The nav map: one entry per link, visibility as a predicate. Adding a screen
+ * is one array entry; the whole role-visibility policy is readable here.
+ * Gating is UX only — the backend @PreAuthorize rules are the enforcement.
+ */
+const NAV_LINKS = [
+  { label: 'Home', path: '/', show: (user) => !!user },
+  { label: 'My Attendance', path: '/attendance', show: (user) => !!user },
+  { label: 'My Leaves', path: '/leaves', show: (user) => !!user },
+  { label: 'My Lectures', path: '/lectures', show: (user) => user?.role === 'TEACHER' },
+  { label: 'Dashboard', path: '/admin/dashboard', show: (user) => MANAGER_ROLES.includes(user?.role) },
+  { label: 'Attendance', path: '/admin/attendance', show: (user) => MANAGER_ROLES.includes(user?.role) },
+  { label: 'Leaves', path: '/admin/leaves', show: (user) => MANAGER_ROLES.includes(user?.role) },
+  { label: 'Lectures', path: '/admin/lectures', show: (user) => MANAGER_ROLES.includes(user?.role) },
+  { label: 'Users', path: '/users', show: (user) => MANAGER_ROLES.includes(user?.role) },
+];
+
+/**
+ * Top navigation bar: config-driven, role-gated links; notification bell;
+ * backend health; the logged-in user; and logout with best-effort clock-out.
  */
 const Navbar = () => {
   const { status } = useHealth();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-
-  const isManager = user && MANAGER_ROLES.includes(user.role);
-  const isTeacher = user && user.role === 'TEACHER';
 
   /**
    * Best-effort clock-out before ending the session. Runs while the token is
@@ -46,46 +60,18 @@ const Navbar = () => {
           Institute Workforce Tracking
         </Typography>
 
-        {/* Navigation links — role-gated in three tiers */}
+        {/* Navigation links — driven by the NAV_LINKS map */}
         <Box sx={{ display: 'flex', gap: 1, ml: 4, flexGrow: 1 }}>
-          {user && (
-            <>
-              <Button color="inherit" onClick={() => navigate('/')}>
-                Home
-              </Button>
-              <Button color="inherit" onClick={() => navigate('/attendance')}>
-                My Attendance
-              </Button>
-              <Button color="inherit" onClick={() => navigate('/leaves')}>
-                My Leaves
-              </Button>
-            </>
-          )}
-          {isTeacher && (
-            <Button color="inherit" onClick={() => navigate('/lectures')}>
-              My Lectures
+          {NAV_LINKS.filter((link) => link.show(user)).map((link) => (
+            <Button key={link.path} color="inherit" onClick={() => navigate(link.path)}>
+              {link.label}
             </Button>
-          )}
-          {isManager && (
-            <>
-              <Button color="inherit" onClick={() => navigate('/admin/attendance')}>
-                Attendance
-              </Button>
-              <Button color="inherit" onClick={() => navigate('/admin/leaves')}>
-                Leaves
-              </Button>
-              <Button color="inherit" onClick={() => navigate('/admin/lectures')}>
-                Lectures
-              </Button>
-              <Button color="inherit" onClick={() => navigate('/users')}>
-                Users
-              </Button>
-            </>
-          )}
+          ))}
         </Box>
 
-        {/* Right side: status + user + logout */}
+        {/* Right side: bell + status + user + logout */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {user && <NotificationBell />}
           <StatusIndicator status={status} />
           {user && (
             <>

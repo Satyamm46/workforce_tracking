@@ -42,6 +42,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.setUserDestinationPrefix("/user");
         // Prefix for client→server messages (unused yet; standard convention).
         registry.setApplicationDestinationPrefixes("/app");
+        
+        registry.enableSimpleBroker("/queue", "/topic");
+
     }
 
     @Override

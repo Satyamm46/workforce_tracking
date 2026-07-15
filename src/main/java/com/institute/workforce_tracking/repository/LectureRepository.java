@@ -94,6 +94,9 @@ public interface LectureRepository extends JpaRepository<Lecture, Long> {
      * JPQL.</p>
      */
     List<Lecture> findByStatus(LectureStatus status);
+    
+    /** How many lectures are currently in the given status. */
+    long countByStatus(LectureStatus status);
 
     
 }

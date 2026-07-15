@@ -3,16 +3,13 @@ import { Box, CircularProgress } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 
 /**
- * Guards routes that require authentication.
- *
- * While the session is being restored (loading), it shows a spinner rather
- * than making a premature decision. Once resolved: authenticated users see the
- * nested routes; unauthenticated users are redirected to the login page.
+ * Guards routes that require authentication. While the session is being
+ * restored, shows a spinner; then authenticated users see the nested routes
+ * and unauthenticated users are redirected to login.
  */
 const ProtectedRoute = () => {
   const { isAuthenticated, loading } = useAuth();
 
-  // Session restoration is still in progress — decide nothing yet.
   if (loading) {
     return (
       <Box
@@ -28,12 +25,10 @@ const ProtectedRoute = () => {
     );
   }
 
-  // Not logged in → send to login, replacing history so Back doesn't loop.
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Authenticated → render whatever nested route matched.
   return <Outlet />;
 };
 

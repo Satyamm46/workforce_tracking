@@ -59,4 +59,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return {@code true} if at least one user has that role
      */
     boolean existsByRole(Role role);
+
+    /** How many active (enabled) user accounts exist. */
+    long countByEnabledTrue();
+
 }

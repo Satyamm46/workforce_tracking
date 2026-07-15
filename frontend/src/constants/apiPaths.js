@@ -37,4 +37,5 @@ export const API_PATHS = Object.freeze({
   ATTENDANCE_ME_TODAY: '/v1/attendance/me/today',
   BREAK_START: '/v1/attendance/break/start',
   BREAK_END: '/v1/attendance/break/end',
+  DASHBOARD_STATS: '/v1/dashboard/stats',
 });
