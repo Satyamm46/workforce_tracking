@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.institute.workforce_tracking.constants.ApiConstants;
 import com.institute.workforce_tracking.dto.response.AttendanceResponse;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
-import com.institute.workforce_tracking.response.ApiResponse;
+import com.institute.workforce_tracking.dto.response.ApiResponse;
 import com.institute.workforce_tracking.service.AttendanceService;
 import com.institute.workforce_tracking.util.DateTimeUtil;
 

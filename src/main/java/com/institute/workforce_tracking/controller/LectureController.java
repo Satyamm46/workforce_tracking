@@ -21,7 +21,7 @@ import com.institute.workforce_tracking.dto.request.ExtendLectureRequest;
 import com.institute.workforce_tracking.dto.request.ScheduleLectureRequest;
 import com.institute.workforce_tracking.dto.response.LectureResponse;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
-import com.institute.workforce_tracking.response.ApiResponse;
+import com.institute.workforce_tracking.dto.response.ApiResponse;
 import com.institute.workforce_tracking.service.LectureService;
 import com.institute.workforce_tracking.util.DateTimeUtil;
 

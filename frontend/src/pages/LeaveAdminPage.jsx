@@ -274,6 +274,4 @@ const LeaveAdminPage = () => {
   );
 };
 
-const styles = {};
-
 export default LeaveAdminPage;

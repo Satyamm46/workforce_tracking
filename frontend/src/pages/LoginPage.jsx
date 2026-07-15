@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -7,6 +7,7 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  Link,
   Stack,
   TextField,
   Typography,
@@ -104,6 +105,13 @@ const LoginPage = () => {
               >
                 {submitting ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
               </Button>
+
+              <Typography variant="body2" color="text.secondary" textAlign="center">
+                Don&apos;t have an account?{' '}
+                <Link component={RouterLink} to="/register">
+                  Request one
+                </Link>
+              </Typography>
             </Stack>
           </form>
         </CardContent>

@@ -1,8 +1,8 @@
 package com.institute.workforce_tracking.controller;
 
 import com.institute.workforce_tracking.constants.ApiConstants;
-import com.institute.workforce_tracking.dto.HealthResponse;
-import com.institute.workforce_tracking.response.ApiResponse;
+import com.institute.workforce_tracking.dto.response.HealthResponse;
+import com.institute.workforce_tracking.dto.response.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;

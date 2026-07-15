@@ -7,7 +7,7 @@ import com.institute.workforce_tracking.dto.response.LeaveBalanceResponse;
 import com.institute.workforce_tracking.dto.response.LeaveResponse;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
 import com.institute.workforce_tracking.enums.LeaveStatus;
-import com.institute.workforce_tracking.response.ApiResponse;
+import com.institute.workforce_tracking.dto.response.ApiResponse;
 import com.institute.workforce_tracking.service.LeaveService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

@@ -14,5 +14,8 @@ public enum NotificationType {
     LEAVE_APPROVED,
 
     /** A leave request was rejected. */
-    LEAVE_REJECTED
+    LEAVE_REJECTED,
+
+    /** A new self-registration is awaiting the Super Admin's approval. */
+    REGISTRATION_SUBMITTED
 }

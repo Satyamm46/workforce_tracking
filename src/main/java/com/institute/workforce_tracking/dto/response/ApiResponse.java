@@ -1,4 +1,4 @@
-package com.institute.workforce_tracking.response;
+package com.institute.workforce_tracking.dto.response;
 
 import java.time.Instant;
 

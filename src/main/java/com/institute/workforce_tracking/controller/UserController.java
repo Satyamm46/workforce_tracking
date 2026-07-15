@@ -18,7 +18,7 @@ import com.institute.workforce_tracking.dto.request.CreateUserRequest;
 import com.institute.workforce_tracking.dto.request.UpdateUserRequest;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
 import com.institute.workforce_tracking.dto.response.UserResponse;
-import com.institute.workforce_tracking.response.ApiResponse;
+import com.institute.workforce_tracking.dto.response.ApiResponse;
 import com.institute.workforce_tracking.service.UserService;
 
 import jakarta.validation.Valid;

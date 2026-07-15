@@ -7,9 +7,14 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.institute.workforce_tracking.entity.User;
 import com.institute.workforce_tracking.enums.NotificationType;
+import com.institute.workforce_tracking.enums.Role;
 import com.institute.workforce_tracking.event.LeaveDecidedEvent;
 import com.institute.workforce_tracking.event.LectureEndingSoonEvent;
+import com.institute.workforce_tracking.event.RegistrationSubmittedEvent;
+import com.institute.workforce_tracking.repository.UserRepository;
+import com.institute.workforce_tracking.service.EmailService;
 import com.institute.workforce_tracking.service.NotificationService;
 
 /**
@@ -26,9 +31,15 @@ public class NotificationEventListener {
     private static final Logger log = LoggerFactory.getLogger(NotificationEventListener.class);
 
     private final NotificationService notificationService;
+    private final UserRepository userRepository;
+    private final EmailService emailService;
 
-    public NotificationEventListener(NotificationService notificationService) {
+    public NotificationEventListener(NotificationService notificationService,
+                                     UserRepository userRepository,
+                                     EmailService emailService) {
         this.notificationService = notificationService;
+        this.userRepository = userRepository;
+        this.emailService = emailService;
     }
 
     @TransactionalEventListener
@@ -57,6 +68,32 @@ public class NotificationEventListener {
                             + ") was " + verdict + ".");
         } catch (Exception ex) {
             log.error("Failed to create leave-decision notification", ex);
+        }
+    }
+
+    /**
+     * Alerts every Super Admin — in-app and by email — that a new
+     * self-registration is awaiting their decision.
+     */
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onRegistrationSubmitted(RegistrationSubmittedEvent event) {
+        String message = event.fullName() + " (" + event.email() + ") requested to join as "
+                + event.requestedRole() + " and is awaiting your approval.";
+
+        for (User admin : userRepository.findByRole(Role.SUPER_ADMIN)) {
+            try {
+                notificationService.notifyUser(
+                        admin.getId(), admin.getEmail(),
+                        NotificationType.REGISTRATION_SUBMITTED, message);
+            } catch (Exception ex) {
+                log.error("Failed to create registration notification for {}", admin.getEmail(), ex);
+            }
+
+            // EmailService is itself fail-safe and async.
+            emailService.send(admin.getEmail(),
+                    "New registration request: " + event.fullName(),
+                    message + "\n\nReview it in the Registrations screen of the admin panel.");
         }
     }
 }

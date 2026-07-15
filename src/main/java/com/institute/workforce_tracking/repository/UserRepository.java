@@ -1,5 +1,6 @@
 package com.institute.workforce_tracking.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -62,5 +63,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     /** How many active (enabled) user accounts exist. */
     long countByEnabledTrue();
+
+    /**
+     * All users holding the given role. Used to notify every Super Admin when
+     * a new registration request arrives.
+     *
+     * @param role the role to filter by
+     * @return the users with that role
+     */
+    List<User> findByRole(Role role);
 
 }

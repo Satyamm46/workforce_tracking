@@ -25,7 +25,9 @@ const NAV_LINKS = [
   { label: 'Attendance', path: '/admin/attendance', show: (user) => MANAGER_ROLES.includes(user?.role) },
   { label: 'Leaves', path: '/admin/leaves', show: (user) => MANAGER_ROLES.includes(user?.role) },
   { label: 'Lectures', path: '/admin/lectures', show: (user) => MANAGER_ROLES.includes(user?.role) },
+  { label: 'Reports', path: '/admin/reports', show: (user) => MANAGER_ROLES.includes(user?.role) },
   { label: 'Users', path: '/users', show: (user) => MANAGER_ROLES.includes(user?.role) },
+  { label: 'Registrations', path: '/admin/registrations', show: (user) => user?.role === 'SUPER_ADMIN' },
 ];
 
 /**

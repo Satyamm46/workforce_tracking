@@ -27,6 +27,14 @@ public final class ApiConstants {
     /** Base path for lecture endpoints (reached at /api/v1/lectures). */
     public static final String LECTURES_BASE = API_VERSION_V1 + "/lectures";
 
-        /** Base path for notification endpoints (reached at /api/v1/notifications). */
+    /** Base path for notification endpoints (reached at /api/v1/notifications). */
     public static final String NOTIFICATIONS_BASE = API_VERSION_V1 + "/notifications";
+
+    public static final String REPORTS_BASE = API_VERSION_V1 + "/reports";
+
+    /** Base path for dashboard endpoints (reached at /api/v1/dashboard). */
+    public static final String DASHBOARD_BASE = API_VERSION_V1 + "/dashboard";
+
+    /** Base path for self-registration endpoints (reached at /api/v1/registrations). */
+    public static final String REGISTRATIONS_BASE = API_VERSION_V1 + "/registrations";
 }

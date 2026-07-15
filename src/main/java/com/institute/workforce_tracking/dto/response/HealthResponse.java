@@ -1,4 +1,4 @@
-package com.institute.workforce_tracking.dto;
+package com.institute.workforce_tracking.dto.response;
 
 /**
  * Payload describing the application's liveness status.

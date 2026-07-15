@@ -7,8 +7,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.institute.workforce_tracking.dto.response.AttendanceReportRow;
 import com.institute.workforce_tracking.entity.Attendance;
 import com.institute.workforce_tracking.entity.User;
 import com.institute.workforce_tracking.enums.AttendanceStatus;
@@ -62,5 +65,36 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
     /** How many attendance records exist for a day in a given status. */
     long countByWorkDateAndStatus(LocalDate workDate, AttendanceStatus status);
+    
+        /**
+     * Builds the per-employee attendance summary for a date range in a single
+     * aggregate query: one result row per employee who has any attendance
+     * record in the period.
+     *
+     * <p>Uses a JPQL constructor expression ("SELECT new ...") so the database
+     * aggregates and the result arrives already in response shape — no
+     * entities are loaded. Present vs leave days are separated with
+     * conditional aggregation (SUM over a CASE).</p>
+     */
+    @Query("""
+            SELECT new com.institute.workforce_tracking.dto.response.AttendanceReportRow(
+                u.id,
+                u.fullName,
+                SUM(CASE WHEN a.status <> com.institute.workforce_tracking.enums.AttendanceStatus.ON_LEAVE
+                         THEN 1L ELSE 0L END),
+                SUM(CASE WHEN a.status = com.institute.workforce_tracking.enums.AttendanceStatus.ON_LEAVE
+                         THEN 1L ELSE 0L END),
+                SUM(COALESCE(a.workingMinutes, 0)),
+                SUM(a.totalBreakMinutes)
+            )
+            FROM Attendance a
+            JOIN a.user u
+            WHERE a.workDate BETWEEN :startDate AND :endDate
+            GROUP BY u.id, u.fullName
+            ORDER BY u.fullName
+            """)
+    java.util.List<AttendanceReportRow> buildAttendanceReport(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 
 }

@@ -44,3 +44,28 @@ export const formatTime = (isoDateTime) => {
   }
   return isoDateTime.substring(11, 16);
 };
+
+/**
+ * Formats an ISO instant/date-time string as a local date + time,
+ * e.g. "2026-07-15T16:40:00Z" -> "15 Jul 2026, 22:10". Returns a dash for
+ * null/absent or unparseable input.
+ *
+ * @param {string|null|undefined} isoInstant backend Instant/date-time string
+ * @returns {string} localized "date, time" or "—"
+ */
+export const formatDateTime = (isoInstant) => {
+  if (!isoInstant) {
+    return '—';
+  }
+  const date = new Date(isoInstant);
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+  return date.toLocaleString(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};

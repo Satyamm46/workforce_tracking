@@ -3,7 +3,7 @@ package com.institute.workforce_tracking.controller;
 import com.institute.workforce_tracking.constants.ApiConstants;
 import com.institute.workforce_tracking.dto.response.NotificationResponse;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
-import com.institute.workforce_tracking.response.ApiResponse;
+import com.institute.workforce_tracking.dto.response.ApiResponse;
 import com.institute.workforce_tracking.service.NotificationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;

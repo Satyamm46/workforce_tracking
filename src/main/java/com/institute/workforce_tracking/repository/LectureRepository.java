@@ -98,5 +98,15 @@ public interface LectureRepository extends JpaRepository<Lecture, Long> {
     /** How many lectures are currently in the given status. */
     long countByStatus(LectureStatus status);
 
+        /**
+     * All completed lectures in a date range, with teachers pre-fetched.
+     * The report service aggregates these in Java, because teaching minutes
+     * require LocalTime arithmetic that belongs in the domain layer.
+     */
+    @EntityGraph(attributePaths = "teacher")
+    List<Lecture> findByStatusAndLectureDateBetween(
+            LectureStatus status, LocalDate startDate, LocalDate endDate);
+
+
     
 }

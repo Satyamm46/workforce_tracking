@@ -4,7 +4,7 @@ import com.institute.workforce_tracking.constants.ApiConstants;
 import com.institute.workforce_tracking.dto.request.LoginRequest;
 import com.institute.workforce_tracking.dto.response.AuthResponse;
 import com.institute.workforce_tracking.dto.response.UserResponse;
-import com.institute.workforce_tracking.response.ApiResponse;
+import com.institute.workforce_tracking.dto.response.ApiResponse;
 import com.institute.workforce_tracking.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
