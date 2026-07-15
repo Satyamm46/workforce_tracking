@@ -2,6 +2,7 @@ package com.institute.workforce_tracking.repository;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import com.institute.workforce_tracking.entity.Lecture;
 import com.institute.workforce_tracking.entity.User;
+import com.institute.workforce_tracking.enums.LectureStatus;
 
 /**
  * Data-access layer for {@link Lecture} records.
@@ -68,4 +70,30 @@ public interface LectureRepository extends JpaRepository<Lecture, Long> {
      */
     @EntityGraph(attributePaths = "teacher")
     Page<Lecture> findByLectureDate(LocalDate lectureDate, Pageable pageable);
+
+        /**
+     * Lectures due to go live: scheduled, on the given date, whose start time
+     * has arrived. Consumed by the status sweep.
+     *
+     * @param status      always SCHEDULED (parameterized for clarity)
+     * @param lectureDate the sweep's "today"
+     * @param time        the sweep's "now" — start times at or before this match
+     * @return lectures that should transition to LIVE
+     */
+    List<Lecture> findByStatusAndLectureDateAndStartTimeLessThanEqual(
+            LectureStatus status, LocalDate lectureDate, LocalTime time);
+
+    /**
+     * All lectures in a given status, for the completion and reminder sweeps.
+     *
+     * <p>Deliberately unfiltered by date: the completion sweep must also catch
+     * stale LIVE lectures from previous days (e.g. after a server outage).
+     * The set of concurrently live lectures is small by nature, so loading and
+     * filtering in Java keeps the effective-end arithmetic
+     * (endTime + extendedMinutes) in one place instead of duplicating it in
+     * JPQL.</p>
+     */
+    List<Lecture> findByStatus(LectureStatus status);
+
+    
 }

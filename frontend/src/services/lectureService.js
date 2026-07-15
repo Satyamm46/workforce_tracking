@@ -35,3 +35,14 @@ export const lectureService = {
   cancelLecture,
   getLecturesByDate,
 };
+
+/** Teacher: ends one of their own live lectures. */
+export const endLecture = (id) => {
+  return apiClient.patch(`${API_PATHS.LECTURES}/${id}/end`);
+};
+
+/** Teacher: extends one of their own live lectures by N minutes. */
+export const extendLecture = (id, minutes) => {
+  return apiClient.patch(`${API_PATHS.LECTURES}/${id}/extend`, { minutes });
+};
+

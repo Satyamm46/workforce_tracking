@@ -74,4 +74,22 @@ public class Lecture extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private LectureStatus status;
+        
+    /**
+     * Whether the "ending soon" event has already been published for this
+     * lecture. Prevents the reminder window from re-firing every scheduler
+     * tick; reset when the lecture is extended so a fresh reminder goes out.
+     */
+    @Column(nullable = false)
+    private boolean reminderSent = false;
+
+        /**
+     * When this lecture actually ends: the scheduled end plus any extensions.
+     * Derived — never stored — so it cannot disagree with its inputs.
+     */
+    public java.time.LocalTime getEffectiveEndTime() {
+        return endTime.plusMinutes(extendedMinutes);
+    }
+
+
 }

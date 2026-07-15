@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.institute.workforce_tracking.constants.ApiConstants;
+import com.institute.workforce_tracking.dto.request.ExtendLectureRequest;
 import com.institute.workforce_tracking.dto.request.ScheduleLectureRequest;
 import com.institute.workforce_tracking.dto.response.LectureResponse;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
@@ -91,5 +92,30 @@ public class LectureController {
         PagedResponse<LectureResponse> lectures =
                 lectureService.getLecturesByDate(effectiveDate, page, size);
         return ResponseEntity.ok(ApiResponse.of("Lectures retrieved for " + effectiveDate, lectures));
+
     }
+    /** Ends one of the caller's own live lectures. */
+    @PatchMapping("/{id}/end")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<ApiResponse<LectureResponse>> endLecture(
+            Authentication authentication,
+            @PathVariable Long id) {
+
+        LectureResponse lecture = lectureService.endLecture(authentication.getName(), id);
+        return ResponseEntity.ok(ApiResponse.of("Lecture ended", lecture));
+    }
+
+    /** Extends one of the caller's own live lectures (cumulative cap 30 min). */
+    @PatchMapping("/{id}/extend")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<ApiResponse<LectureResponse>> extendLecture(
+            Authentication authentication,
+            @PathVariable Long id,
+            @Valid @RequestBody ExtendLectureRequest request) {
+
+        LectureResponse lecture =
+                lectureService.extendLecture(authentication.getName(), id, request);
+        return ResponseEntity.ok(ApiResponse.of("Lecture extended", lecture));
+    }
+
 }

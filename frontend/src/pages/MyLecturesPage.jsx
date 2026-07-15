@@ -1,11 +1,31 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Box, Button, Card, CardContent, CircularProgress, Grid, Paper,
-  Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  TextField, Typography,
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
 } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
 import CancelIcon from '@mui/icons-material/Cancel';
+import StopIcon from '@mui/icons-material/Stop';
+import MoreTimeIcon from '@mui/icons-material/MoreTime';
 import MainLayout from '../layouts/MainLayout';
 import LectureStatusChip from '../components/LectureStatusChip';
 import { lectureService } from '../services/lectureService';
@@ -23,8 +43,8 @@ const INITIAL_FORM = {
 };
 
 /**
- * The teacher's scheduling screen: a form to plan lectures and the upcoming
- * schedule with cancellation of not-yet-started lectures.
+ * The teacher's scheduling screen: a form to plan lectures, the upcoming
+ * schedule with cancellation, and live-lecture controls (end / extend).
  */
 const MyLecturesPage = () => {
   const [lectures, setLectures] = useState(null);
@@ -35,6 +55,10 @@ const MyLecturesPage = () => {
   const [form, setForm] = useState(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
+  const [actionId, setActionId] = useState(null);
+  const [extendTarget, setExtendTarget] = useState(null); // lecture being extended
+  const [extendMinutes, setExtendMinutes] = useState('15');
+  const [extending, setExtending] = useState(false);
 
   const loadLectures = useCallback(async (pageNumber) => {
     setLoading(true);
@@ -84,6 +108,34 @@ const MyLecturesPage = () => {
       setError(err?.message ?? 'Failed to cancel the lecture.');
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const handleEnd = async (id) => {
+    setActionId(id);
+    setError(null);
+    try {
+      await lectureService.endLecture(id);
+      await loadLectures(page);
+    } catch (err) {
+      setError(err?.message ?? 'Failed to end the lecture.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleExtend = async () => {
+    setExtending(true);
+    setError(null);
+    try {
+      await lectureService.extendLecture(extendTarget.id, Number(extendMinutes));
+      setExtendTarget(null);
+      await loadLectures(page);
+    } catch (err) {
+      setExtendTarget(null);
+      setError(err?.message ?? 'Failed to extend the lecture.');
+    } finally {
+      setExtending(false);
     }
   };
 
@@ -211,6 +263,21 @@ const MyLecturesPage = () => {
                               Cancel
                             </Button>
                           )}
+                          {lecture.status === 'LIVE' && (
+                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                              <Button size="small" startIcon={<MoreTimeIcon />}
+                                onClick={() => { setExtendTarget(lecture); setExtendMinutes('15'); }}
+                                disabled={actionId === lecture.id}>
+                                Extend
+                              </Button>
+                              <Button size="small" color="error" variant="outlined"
+                                startIcon={<StopIcon />}
+                                onClick={() => handleEnd(lecture.id)}
+                                disabled={actionId === lecture.id}>
+                                End
+                              </Button>
+                            </Stack>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -234,6 +301,32 @@ const MyLecturesPage = () => {
           )}
         </Paper>
       </Stack>
+
+      {/* ---- Extend dialog ---- */}
+      <Dialog open={extendTarget !== null} onClose={() => !extending && setExtendTarget(null)}>
+        <DialogTitle>Extend lecture</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Minutes"
+            type="number"
+            value={extendMinutes}
+            onChange={(e) => setExtendMinutes(e.target.value)}
+            inputProps={{ min: 1, max: 30 }}
+            helperText={`Currently extended by ${extendTarget?.extendedMinutes ?? 0} of 30 minutes`}
+            fullWidth
+            sx={{ mt: 1 }}
+            disabled={extending}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExtendTarget(null)} disabled={extending}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleExtend} disabled={extending}>
+            {extending ? <CircularProgress size={22} color="inherit" /> : 'Extend'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </MainLayout>
   );
 };

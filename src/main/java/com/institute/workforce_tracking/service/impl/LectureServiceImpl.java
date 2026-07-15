@@ -1,7 +1,10 @@
 package com.institute.workforce_tracking.service.impl;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -9,12 +12,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.institute.workforce_tracking.dto.request.ExtendLectureRequest;
 import com.institute.workforce_tracking.dto.request.ScheduleLectureRequest;
 import com.institute.workforce_tracking.dto.response.LectureResponse;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
 import com.institute.workforce_tracking.entity.Lecture;
 import com.institute.workforce_tracking.entity.User;
 import com.institute.workforce_tracking.enums.LectureStatus;
+import com.institute.workforce_tracking.event.LectureEndingSoonEvent;
 import com.institute.workforce_tracking.exception.BadRequestException;
 import com.institute.workforce_tracking.exception.ResourceNotFoundException;
 import com.institute.workforce_tracking.mapper.LectureMapper;
@@ -26,20 +31,30 @@ import com.institute.workforce_tracking.util.PageUtils;
 
 /**
  * Default implementation of {@link LectureService}.
+ *
+ * <p>Covers the teacher-facing operations (schedule, cancel, end, extend),
+ * the admin day view, and the three time-driven sweep operations invoked by
+ * the lecture status scheduler.</p>
  */
 @Service
 public class LectureServiceImpl implements LectureService {
 
+    private static final int MAX_EXTENSION_MINUTES = 30;
+    private static final int REMINDER_WINDOW_MINUTES = 5;
+
     private final LectureRepository lectureRepository;
     private final UserRepository userRepository;
     private final LectureMapper lectureMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     public LectureServiceImpl(LectureRepository lectureRepository,
                               UserRepository userRepository,
-                              LectureMapper lectureMapper) {
+                              LectureMapper lectureMapper,
+                              ApplicationEventPublisher eventPublisher) {
         this.lectureRepository = lectureRepository;
         this.userRepository = userRepository;
         this.lectureMapper = lectureMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -92,18 +107,10 @@ public class LectureServiceImpl implements LectureService {
     @Override
     @Transactional
     public LectureResponse cancelLecture(String teacherEmail, Long lectureId) {
-        User teacher = findUserByEmail(teacherEmail);
-        Lecture lecture = lectureRepository.findById(lectureId)
-                .orElseThrow(() -> new ResourceNotFoundException("Lecture", "id", lectureId));
-
-        // Ownership guard: other teachers' lectures are treated as nonexistent.
-        if (!lecture.getTeacher().getId().equals(teacher.getId())) {
-            throw new ResourceNotFoundException("Lecture", "id", lectureId);
-        }
+        Lecture lecture = findOwnedLecture(teacherEmail, lectureId);
         if (lecture.getStatus() != LectureStatus.SCHEDULED) {
             throw new BadRequestException("Only scheduled lectures can be cancelled.");
         }
-
         lecture.setStatus(LectureStatus.CANCELLED);
         return lectureMapper.toLectureResponse(lectureRepository.save(lecture));
     }
@@ -120,12 +127,109 @@ public class LectureServiceImpl implements LectureService {
         return PagedResponse.from(result);
     }
 
+    @Override
+    @Transactional
+    public LectureResponse endLecture(String teacherEmail, Long lectureId) {
+        Lecture lecture = findOwnedLecture(teacherEmail, lectureId);
+        if (lecture.getStatus() != LectureStatus.LIVE) {
+            throw new BadRequestException("Only live lectures can be ended.");
+        }
+        lecture.setStatus(LectureStatus.COMPLETED);
+        return lectureMapper.toLectureResponse(lectureRepository.save(lecture));
+    }
+
+    @Override
+    @Transactional
+    public LectureResponse extendLecture(String teacherEmail, Long lectureId,
+                                         ExtendLectureRequest request) {
+        Lecture lecture = findOwnedLecture(teacherEmail, lectureId);
+        if (lecture.getStatus() != LectureStatus.LIVE) {
+            throw new BadRequestException("Only live lectures can be extended.");
+        }
+        int newTotal = lecture.getExtendedMinutes() + request.minutes();
+        if (newTotal > MAX_EXTENSION_MINUTES) {
+            throw new BadRequestException("Total extension cannot exceed "
+                    + MAX_EXTENSION_MINUTES + " minutes; "
+                    + (MAX_EXTENSION_MINUTES - lecture.getExtendedMinutes())
+                    + " minute(s) remaining.");
+        }
+        lecture.setExtendedMinutes(newTotal);
+        lecture.setReminderSent(false); // an extended lecture earns a fresh reminder
+        return lectureMapper.toLectureResponse(lectureRepository.save(lecture));
+    }
+
+    @Override
+    @Transactional
+    public int goLiveDueLectures() {
+        List<Lecture> due = lectureRepository.findByStatusAndLectureDateAndStartTimeLessThanEqual(
+                LectureStatus.SCHEDULED, DateTimeUtil.today(), DateTimeUtil.now().toLocalTime());
+        due.forEach(lecture -> lecture.setStatus(LectureStatus.LIVE));
+        lectureRepository.saveAll(due);
+        return due.size();
+    }
+
+    @Override
+    @Transactional
+    public int completeOverdueLectures() {
+        LocalDate today = DateTimeUtil.today();
+        LocalTime now = DateTimeUtil.now().toLocalTime();
+
+        List<Lecture> overdue = lectureRepository.findByStatus(LectureStatus.LIVE).stream()
+                .filter(lecture -> lecture.getLectureDate().isBefore(today)
+                        || (lecture.getLectureDate().isEqual(today)
+                            && !lecture.getEffectiveEndTime().isAfter(now)))
+                .toList();
+
+        overdue.forEach(lecture -> lecture.setStatus(LectureStatus.COMPLETED));
+        lectureRepository.saveAll(overdue);
+        return overdue.size();
+    }
+
+    @Override
+    @Transactional
+    public int publishEndingReminders() {
+        LocalDate today = DateTimeUtil.today();
+        LocalTime now = DateTimeUtil.now().toLocalTime();
+
+        List<Lecture> endingSoon = lectureRepository.findByStatus(LectureStatus.LIVE).stream()
+                .filter(lecture -> !lecture.isReminderSent()
+                        && lecture.getLectureDate().isEqual(today)
+                        && lecture.getEffectiveEndTime().isAfter(now)
+                        && !lecture.getEffectiveEndTime().isAfter(now.plusMinutes(REMINDER_WINDOW_MINUTES)))
+                .toList();
+
+        for (Lecture lecture : endingSoon) {
+            eventPublisher.publishEvent(new LectureEndingSoonEvent(
+                    lecture.getId(),
+                    lecture.getTeacher().getId(),
+                    lecture.getTeacher().getEmail(),
+                    lecture.getTeacher().getFullName(),
+                    lecture.getSubject(),
+                    lecture.getClassName(),
+                    lecture.getEffectiveEndTime()));
+            lecture.setReminderSent(true);
+        }
+        lectureRepository.saveAll(endingSoon);
+        return endingSoon.size();
+    }
+
     /** Treats blank or empty batch input as "no batch" (stored as null). */
     private String normalizeBatch(String batch) {
         if (batch == null || batch.isBlank()) {
             return null;
         }
         return batch.trim();
+    }
+
+    /** Loads a lecture, treating other teachers' lectures as nonexistent. */
+    private Lecture findOwnedLecture(String teacherEmail, Long lectureId) {
+        User teacher = findUserByEmail(teacherEmail);
+        Lecture lecture = lectureRepository.findById(lectureId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lecture", "id", lectureId));
+        if (!lecture.getTeacher().getId().equals(teacher.getId())) {
+            throw new ResourceNotFoundException("Lecture", "id", lectureId);
+        }
+        return lecture;
     }
 
     private User findUserByEmail(String email) {
