@@ -7,6 +7,11 @@ import { API_PATHS } from '../constants/apiPaths';
  * { data, message, success }.
  */
 
+/** Starts or reopens the caller's working day. */
+export const checkIn = () => {
+  return apiClient.post(API_PATHS.ATTENDANCE_CHECK_IN);
+};
+
 /** Ends the caller's working day. */
 export const clockOut = () => {
   return apiClient.post(API_PATHS.ATTENDANCE_CLOCK_OUT);
@@ -45,6 +50,7 @@ export const endBreak = () => {
 };
 
 export const attendanceService = {
+  checkIn,
   clockOut,
   startBreak,
   endBreak,

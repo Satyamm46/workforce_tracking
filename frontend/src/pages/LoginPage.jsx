@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Card,
@@ -12,6 +13,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
 import { useAuth } from '../context/AuthContext';
 
 /**
@@ -54,14 +56,18 @@ const LoginPage = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: 'background.default',
+        background: (theme) =>
+          `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 55%, ${theme.palette.secondary.main} 100%)`,
         p: 2,
       }}
     >
-      <Card sx={{ width: '100%', maxWidth: 420 }} elevation={3}>
-        <CardContent sx={{ p: 4 }}>
-          <Stack spacing={1} sx={{ mb: 3 }}>
-            <Typography variant="h5" component="h1" fontWeight={700}>
+      <Card sx={{ width: '100%', maxWidth: 420, borderRadius: 3 }} elevation={8}>
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+          <Stack spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
+            <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56 }}>
+              <BusinessCenterIcon fontSize="large" />
+            </Avatar>
+            <Typography variant="h5" component="h1" fontWeight={700} textAlign="center">
               Institute Workforce Tracking
             </Typography>
             <Typography variant="body2" color="text.secondary">

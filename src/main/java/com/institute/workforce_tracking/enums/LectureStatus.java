@@ -3,21 +3,27 @@ package com.institute.workforce_tracking.enums;
 /**
  * Lifecycle of a lecture.
  *
- * <p>M6 implements SCHEDULED and CANCELLED. LIVE and COMPLETED are declared
- * now — the tracking milestone adds the transitions into them (automatic at
- * start time, teacher-ended, or auto-completed), not the states themselves.</p>
+ * <p>A lecture goes LIVE when the teacher presses Start Class (possibly
+ * later than scheduled — the session shifts accordingly). One that is never
+ * started by its scheduled end is marked MISSED by the scheduler.</p>
  */
 public enum LectureStatus {
 
-    /** Planned; start time is in the future. */
+    /** Planned; waiting for the teacher to start it. */
     SCHEDULED,
 
-    /** Currently in progress (set automatically by the tracking scheduler). */
+    /** Currently in progress (started by the teacher). */
     LIVE,
 
     /** Finished — ended by the teacher or auto-completed. */
     COMPLETED,
 
     /** Cancelled by the teacher before it started. */
-    CANCELLED
+    CANCELLED,
+
+    /** Never started: its scheduled end passed without the teacher starting it. */
+    MISSED,
+
+    /** Completed but the teacher never submitted a summary within 24h. */
+    SUMMARY_MISSED
 }

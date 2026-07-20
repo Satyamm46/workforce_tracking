@@ -10,6 +10,7 @@ import com.institute.workforce_tracking.mapper.NotificationMapper;
 import com.institute.workforce_tracking.repository.NotificationRepository;
 import com.institute.workforce_tracking.repository.UserRepository;
 import com.institute.workforce_tracking.service.NotificationService;
+import com.institute.workforce_tracking.service.PushService;
 import com.institute.workforce_tracking.util.PageUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,15 +37,18 @@ public class NotificationServiceImpl implements NotificationService {
     private final UserRepository userRepository;
     private final NotificationMapper notificationMapper;
     private final SimpMessagingTemplate messagingTemplate;
+    private final PushService pushService;
 
     public NotificationServiceImpl(NotificationRepository notificationRepository,
                                    UserRepository userRepository,
                                    NotificationMapper notificationMapper,
-                                   SimpMessagingTemplate messagingTemplate) {
+                                   SimpMessagingTemplate messagingTemplate,
+                                   PushService pushService) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
         this.notificationMapper = notificationMapper;
         this.messagingTemplate = messagingTemplate;
+        this.pushService = pushService;
     }
 
     @Override
@@ -64,6 +68,10 @@ public class NotificationServiceImpl implements NotificationService {
         } catch (Exception ex) {
             log.warn("WebSocket push failed for user {}: {}", email, ex.getMessage());
         }
+
+        // Web Push — async + fail-safe, a no-op until VAPID keys are
+        // configured. Reaches the user's phone even with the app closed.
+        pushService.sendToUser(userId, "Workforce Tracking", message);
     }
 
     @Override

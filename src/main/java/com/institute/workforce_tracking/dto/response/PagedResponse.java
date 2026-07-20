@@ -1,6 +1,7 @@
 package com.institute.workforce_tracking.dto.response;
 
 import java.util.List;
+import java.util.function.Function;
 
 import org.springframework.data.domain.Page;
 
@@ -42,6 +43,27 @@ public record PagedResponse<T>(
     public static <T> PagedResponse<T> from(Page<T> page) {
         return new PagedResponse<>(
                 page.getContent(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isFirst(),
+                page.isLast()
+        );
+    }
+
+    /**
+     * Builds a PagedResponse by mapping entity pages to DTOs.
+     *
+     * @param page   the source page of entities
+     * @param mapper function to convert entity to DTO
+     * @param <E>    entity type
+     * @param <T>    DTO type
+     * @return a paged response of DTOs
+     */
+    public static <E, T> PagedResponse<T> of(Page<E> page, Function<E, T> mapper) {
+        return new PagedResponse<>(
+                page.getContent().stream().map(mapper).toList(),
                 page.getNumber(),
                 page.getSize(),
                 page.getTotalElements(),

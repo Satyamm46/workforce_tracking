@@ -1,0 +1,17 @@
+{
+  "name": "Institute Workforce Tracking",
+  "short_name": "Workforce",
+  "description": "Attendance, leave, and lecture tracking for the institute.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1976d2",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

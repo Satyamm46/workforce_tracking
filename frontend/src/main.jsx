@@ -8,6 +8,11 @@ import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { HealthProvider } from './context/HealthContext';
 import AppRoutes from './routes/AppRoutes';
+import { registerServiceWorker } from './services/pushService';
+
+// Register the push service worker early; failures are non-fatal (push is
+// a courtesy channel — the app works fully without it).
+registerServiceWorker().catch(() => {});
 
 /**
  * Application entry point — the provider tree. Nesting order encodes

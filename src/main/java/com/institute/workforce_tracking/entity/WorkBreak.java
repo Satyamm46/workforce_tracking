@@ -2,6 +2,8 @@ package com.institute.workforce_tracking.entity;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.ColumnDefault;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -45,4 +47,13 @@ public class WorkBreak extends BaseEntity {
 
     /** Break length in minutes, computed and stored when the break ends. */
     private Integer durationMinutes;
+
+    /**
+     * True when the system started this break because the user disconnected
+     * (closed the browser) without logging out. Only auto-started breaks are
+     * subject to the auto-checkout time limit; manual breaks are not.
+     */
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean autoStarted = false;
 }

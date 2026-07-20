@@ -23,12 +23,16 @@ import {
   Typography,
 } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 import CancelIcon from '@mui/icons-material/Cancel';
 import StopIcon from '@mui/icons-material/Stop';
 import MoreTimeIcon from '@mui/icons-material/MoreTime';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import NoteAltIcon from '@mui/icons-material/NoteAlt';
 import MainLayout from '../layouts/MainLayout';
 import LectureStatusChip from '../components/LectureStatusChip';
 import { lectureService } from '../services/lectureService';
+import { lectureSummaryService } from '../services/lectureSummaryService';
 import { formatTimeOfDay } from '../utils/formatters';
 
 const PAGE_SIZE = 10;
@@ -59,6 +63,12 @@ const MyLecturesPage = () => {
   const [extendTarget, setExtendTarget] = useState(null); // lecture being extended
   const [extendMinutes, setExtendMinutes] = useState('15');
   const [extending, setExtending] = useState(false);
+  const [rescheduleTarget, setRescheduleTarget] = useState(null); // lecture being rescheduled
+  const [rescheduleForm, setRescheduleForm] = useState({ lectureDate: '', startTime: '', endTime: '' });
+  const [rescheduling, setRescheduling] = useState(false);
+  const [summaryTarget, setSummaryTarget] = useState(null); // COMPLETED lecture awaiting summary
+  const [summaryText, setSummaryText] = useState('');
+  const [submittingSummary, setSubmittingSummary] = useState(false);
 
   const loadLectures = useCallback(async (pageNumber) => {
     setLoading(true);
@@ -111,6 +121,19 @@ const MyLecturesPage = () => {
     }
   };
 
+  const handleStart = async (id) => {
+    setActionId(id);
+    setError(null);
+    try {
+      await lectureService.startLecture(id);
+      await loadLectures(page);
+    } catch (err) {
+      setError(err?.message ?? 'Failed to start the lecture.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
   const handleEnd = async (id) => {
     setActionId(id);
     setError(null);
@@ -136,6 +159,37 @@ const MyLecturesPage = () => {
       setError(err?.message ?? 'Failed to extend the lecture.');
     } finally {
       setExtending(false);
+    }
+  };
+
+  const handleReschedule = async () => {
+    setRescheduling(true);
+    setError(null);
+    try {
+      await lectureService.rescheduleLecture(rescheduleTarget.id, rescheduleForm);
+      setRescheduleTarget(null);
+      await loadLectures(page);
+    } catch (err) {
+      setRescheduleTarget(null);
+      setError(err?.message ?? 'Failed to reschedule the lecture.');
+    } finally {
+      setRescheduling(false);
+    }
+  };
+
+  const handleSubmitSummary = async () => {
+    setSubmittingSummary(true);
+    setError(null);
+    try {
+      await lectureSummaryService.submitSummary(summaryTarget.id, { summaryText });
+      setSummaryTarget(null);
+      setSummaryText('');
+      await loadLectures(page);
+    } catch (err) {
+      setSummaryTarget(null);
+      setError(err?.message ?? 'Failed to submit the summary.');
+    } finally {
+      setSubmittingSummary(false);
     }
   };
 
@@ -257,11 +311,19 @@ const MyLecturesPage = () => {
                         </TableCell>
                         <TableCell align="right">
                           {lecture.status === 'SCHEDULED' && (
-                            <Button size="small" color="error" startIcon={<CancelIcon />}
-                              onClick={() => handleCancel(lecture.id)}
-                              disabled={cancellingId === lecture.id}>
-                              Cancel
-                            </Button>
+                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                              <Button size="small" variant="contained" color="success"
+                                startIcon={<PlayArrowIcon />}
+                                onClick={() => handleStart(lecture.id)}
+                                disabled={actionId === lecture.id}>
+                                Start Class
+                              </Button>
+                              <Button size="small" color="error" startIcon={<CancelIcon />}
+                                onClick={() => handleCancel(lecture.id)}
+                                disabled={cancellingId === lecture.id}>
+                                Cancel
+                              </Button>
+                            </Stack>
                           )}
                           {lecture.status === 'LIVE' && (
                             <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -277,6 +339,21 @@ const MyLecturesPage = () => {
                                 End
                               </Button>
                             </Stack>
+                          )}
+                          {(lecture.status === 'MISSED' || lecture.status === 'CANCELLED') && (
+                            <Button size="small" variant="contained" startIcon={<ScheduleIcon />}
+                              onClick={() => {
+                                setRescheduleTarget(lecture);
+                                setRescheduleForm({ lectureDate: '', startTime: '', endTime: '' });
+                              }}>
+                              Reschedule
+                            </Button>
+                          )}
+                          {lecture.status === 'COMPLETED' && (
+                            <Button size="small" variant="outlined" startIcon={<NoteAltIcon />}
+                              onClick={() => { setSummaryTarget(lecture); setSummaryText(''); }}>
+                              Submit Summary
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>
@@ -324,6 +401,83 @@ const MyLecturesPage = () => {
           </Button>
           <Button variant="contained" onClick={handleExtend} disabled={extending}>
             {extending ? <CircularProgress size={22} color="inherit" /> : 'Extend'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={rescheduleTarget !== null} onClose={() => !rescheduling && setRescheduleTarget(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Reschedule {rescheduleTarget?.subject} — {rescheduleTarget?.className}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
+            <TextField
+              label="New Date"
+              type="date"
+              value={rescheduleForm.lectureDate}
+              onChange={(e) => setRescheduleForm((prev) => ({ ...prev, lectureDate: e.target.value }))}
+              required
+              fullWidth
+              disabled={rescheduling}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Stack direction="row" spacing={2}>
+              <TextField
+                label="Start Time"
+                type="time"
+                value={rescheduleForm.startTime}
+                onChange={(e) => setRescheduleForm((prev) => ({ ...prev, startTime: e.target.value }))}
+                required
+                fullWidth
+                disabled={rescheduling}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                label="End Time"
+                type="time"
+                value={rescheduleForm.endTime}
+                onChange={(e) => setRescheduleForm((prev) => ({ ...prev, endTime: e.target.value }))}
+                required
+                fullWidth
+                disabled={rescheduling}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRescheduleTarget(null)} disabled={rescheduling}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleReschedule} disabled={rescheduling}>
+            {rescheduling ? <CircularProgress size={22} color="inherit" /> : 'Reschedule'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Submit Summary Dialog */}
+      <Dialog open={summaryTarget !== null} onClose={() => !submittingSummary && setSummaryTarget(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Submit Summary — {summaryTarget?.subject} ({summaryTarget?.className})
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            label="What was covered in this lecture?"
+            value={summaryText}
+            onChange={(e) => setSummaryText(e.target.value)}
+            required fullWidth multiline minRows={4}
+            inputProps={{ maxLength: 2000 }}
+            helperText={`${summaryText.length}/2000 — Submit within 24h of the lecture ending.`}
+            disabled={submittingSummary}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSummaryTarget(null)} disabled={submittingSummary}>Cancel</Button>
+          <Button variant="contained" onClick={handleSubmitSummary}
+            disabled={submittingSummary || !summaryText.trim()}>
+            {submittingSummary ? <CircularProgress size={22} color="inherit" /> : 'Submit'}
           </Button>
         </DialogActions>
       </Dialog>

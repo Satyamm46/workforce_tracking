@@ -13,6 +13,7 @@ public record RegistrationResponse(
         Long id,
         String fullName,
         String email,
+        String phone,
         Role requestedRole,
         RegistrationStatus status,
         String decidedByName,

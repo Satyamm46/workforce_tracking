@@ -32,7 +32,10 @@ public class AttendanceMapper {
                 attendance.getLogoutTime(),
                 attendance.getTotalBreakMinutes(),
                 calculateWorkingMinutes(attendance),
-                attendance.getStatus()
+                attendance.getStatus(),
+                attendance.isLateArrival(),
+                attendance.isHalfDay(),
+                attendance.isAbsentNoReport()
         );
     }
 

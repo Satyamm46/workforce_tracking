@@ -75,6 +75,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         registration.setFullName(request.fullName());
         registration.setEmail(request.email());
         registration.setPassword(passwordEncoder.encode(request.password()));
+        registration.setPhone(normalizePhone(request.phone()));
         registration.setRequestedRole(request.requestedRole());
         registration.setStatus(RegistrationStatus.PENDING);
         RegistrationRequest saved = registrationRepository.save(registration);
@@ -124,6 +125,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         user.setFullName(registration.getFullName());
         user.setEmail(registration.getEmail());
         user.setPassword(registration.getPassword()); // already BCrypt-hashed at signup
+        user.setPhone(registration.getPhone());
         user.setRole(role);
         user.setEnabled(true);
         userRepository.save(user);
@@ -138,6 +140,11 @@ public class RegistrationServiceImpl implements RegistrationService {
         RegistrationRequest registration = getPendingRequest(id);
         decide(registration, RegistrationStatus.REJECTED, decision.comment(), deciderEmail);
         return registrationMapper.toRegistrationResponse(registration);
+    }
+
+    /** Blank phone → null, so the column stays clean for "not provided". */
+    private String normalizePhone(String phone) {
+        return (phone == null || phone.isBlank()) ? null : phone.trim();
     }
 
     /** Loads a request and ensures it is still awaiting a decision. */

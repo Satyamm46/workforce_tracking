@@ -32,6 +32,13 @@ public class AttendanceController {
         this.attendanceService = attendanceService;
     }
 
+    /** Starts or reopens the caller's working day. */
+    @PostMapping("/check-in")
+    public ResponseEntity<ApiResponse<AttendanceResponse>> checkIn(Authentication authentication) {
+        AttendanceResponse attendance = attendanceService.checkIn(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.of("Checked in successfully", attendance));
+    }
+
     /** Ends the caller's working day (auto-closing any open break). */
     @PostMapping("/clock-out")
     public ResponseEntity<ApiResponse<AttendanceResponse>> clockOut(Authentication authentication) {

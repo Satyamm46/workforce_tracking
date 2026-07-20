@@ -37,4 +37,19 @@ public final class ApiConstants {
 
     /** Base path for self-registration endpoints (reached at /api/v1/registrations). */
     public static final String REGISTRATIONS_BASE = API_VERSION_V1 + "/registrations";
+
+    /** Base path for push-subscription endpoints (reached at /api/v1/push). */
+    public static final String PUSH_BASE = API_VERSION_V1 + "/push";
+
+    /** Base path for work-plan endpoints (reached at /api/v1/work-plans). */
+    public static final String WORK_PLANS_BASE = API_VERSION_V1 + "/work-plans";
+
+    /** Base path for work-report endpoints (reached at /api/v1/work-reports). */
+    public static final String WORK_REPORTS_BASE = API_VERSION_V1 + "/work-reports";
+
+    /** Base path for lecture-summary endpoints (reached at /api/v1/lecture-summaries). */
+    public static final String LECTURE_SUMMARIES_BASE = API_VERSION_V1 + "/lecture-summaries";
+
+    /** Base path for deadline-extension endpoints (reached at /api/v1/deadline-extensions). */
+    public static final String DEADLINE_EXTENSIONS_BASE = API_VERSION_V1 + "/deadline-extensions";
 }

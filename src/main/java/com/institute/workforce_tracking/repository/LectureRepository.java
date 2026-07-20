@@ -72,18 +72,6 @@ public interface LectureRepository extends JpaRepository<Lecture, Long> {
     Page<Lecture> findByLectureDate(LocalDate lectureDate, Pageable pageable);
 
         /**
-     * Lectures due to go live: scheduled, on the given date, whose start time
-     * has arrived. Consumed by the status sweep.
-     *
-     * @param status      always SCHEDULED (parameterized for clarity)
-     * @param lectureDate the sweep's "today"
-     * @param time        the sweep's "now" — start times at or before this match
-     * @return lectures that should transition to LIVE
-     */
-    List<Lecture> findByStatusAndLectureDateAndStartTimeLessThanEqual(
-            LectureStatus status, LocalDate lectureDate, LocalTime time);
-
-    /**
      * All lectures in a given status, for the completion and reminder sweeps.
      *
      * <p>Deliberately unfiltered by date: the completion sweep must also catch
@@ -94,9 +82,16 @@ public interface LectureRepository extends JpaRepository<Lecture, Long> {
      * JPQL.</p>
      */
     List<Lecture> findByStatus(LectureStatus status);
-    
+
     /** How many lectures are currently in the given status. */
     long countByStatus(LectureStatus status);
+
+    /**
+     * One teacher's lectures on a day in a given status. Backs the deadline
+     * extension's penalty reversal (SUMMARY_MISSED → COMPLETED).
+     */
+    List<Lecture> findByTeacherAndLectureDateAndStatus(
+            User teacher, LocalDate lectureDate, LectureStatus status);
 
         /**
      * All completed lectures in a date range, with teachers pre-fetched.

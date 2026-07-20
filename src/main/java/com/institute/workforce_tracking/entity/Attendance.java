@@ -77,4 +77,30 @@ public class Attendance extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AttendanceStatus status;
+
+    /**
+     * True when the day was marked absent because no work report arrived
+     * within the deadline. Reversible: worked minutes stay derivable from
+     * loginTime/logoutTime/totalBreakMinutes, so a granted extension can
+     * restore them.
+     */
+    @Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("false")
+    private boolean absentNoReport = false;
+
+    /**
+     * True when the first check-in came more than the grace period (15 min)
+     * after the start time the user declared in their work plan.
+     */
+    @Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("false")
+    private boolean lateArrival = false;
+
+    /**
+     * True when the day counts as a half day — the penalty for a late
+     * arrival. Reports credit only half the worked minutes for such days.
+     */
+    @Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("false")
+    private boolean halfDay = false;
 }

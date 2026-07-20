@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import MainLayout from '../layouts/MainLayout';
 import AttendanceStatusChip from '../components/AttendanceStatusChip';
+import AttendanceFlagChips from '../components/AttendanceFlagChips';
 import { attendanceService } from '../services/attendanceService';
 import { formatMinutes, formatTime } from '../utils/formatters';
 
@@ -98,7 +99,12 @@ const AttendanceAdminPage = () => {
                         <TableCell>{formatTime(record.logoutTime)}</TableCell>
                         <TableCell>{formatMinutes(record.totalBreakMinutes)}</TableCell>
                         <TableCell>{formatMinutes(record.workingMinutes)}</TableCell>
-                        <TableCell><AttendanceStatusChip status={record.status} /></TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                            <AttendanceStatusChip status={record.status} />
+                            <AttendanceFlagChips record={record} />
+                          </Stack>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

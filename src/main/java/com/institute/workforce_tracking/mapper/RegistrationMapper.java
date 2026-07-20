@@ -17,6 +17,7 @@ public class RegistrationMapper {
                 request.getId(),
                 request.getFullName(),
                 request.getEmail(),
+                request.getPhone(),
                 request.getRequestedRole(),
                 request.getStatus(),
                 request.getDecidedBy() != null ? request.getDecidedBy().getFullName() : null,

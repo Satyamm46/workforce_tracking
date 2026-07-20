@@ -19,6 +19,7 @@ export const API_PATHS = Object.freeze({
 
   /** Attendance endpoints. */
   ATTENDANCE: '/v1/attendance',
+  ATTENDANCE_CHECK_IN: '/v1/attendance/check-in',
   ATTENDANCE_CLOCK_OUT: '/v1/attendance/clock-out',
   ATTENDANCE_ME: '/v1/attendance/me',
   ATTENDANCE_ME_TODAY: '/v1/attendance/me/today',
@@ -38,6 +39,31 @@ export const API_PATHS = Object.freeze({
   NOTIFICATIONS_ME: '/v1/notifications/me',
   NOTIFICATIONS_UNREAD_COUNT: '/v1/notifications/me/unread-count',
   NOTIFICATIONS_READ_ALL: '/v1/notifications/me/read-all',
+
+  /** Push-subscription endpoints. */
+  PUSH_PUBLIC_KEY: '/v1/push/public-key',
+  PUSH_SUBSCRIBE: '/v1/push/subscribe',
+  PUSH_UNSUBSCRIBE: '/v1/push/unsubscribe',
+
+  /** Work-plan (next-day schedule) endpoints. */
+  WORK_PLANS: '/v1/work-plans',
+  WORK_PLANS_TOMORROW: '/v1/work-plans/tomorrow',
+  WORK_PLANS_TODAY: '/v1/work-plans/today',
+  WORK_PLANS_ME: '/v1/work-plans/me',
+  WORK_PLANS_ME_DAY: '/v1/work-plans/me/day',
+  WORK_PLANS_MISSING: '/v1/work-plans/missing',
+
+  /** Work report endpoints (end-of-day reports). */
+  WORK_REPORTS: '/v1/work-reports',
+  WORK_REPORTS_ME: '/v1/work-reports/me',
+  WORK_REPORTS_ME_DAY: '/v1/work-reports/me/day',
+
+  /** Lecture summary endpoints (post-lecture summaries). */
+  LECTURE_SUMMARIES: '/v1/lecture-summaries',
+  LECTURE_SUMMARIES_ME: '/v1/lecture-summaries/me',
+
+  /** Deadline extension endpoints (admin grace periods). */
+  DEADLINE_EXTENSIONS: '/v1/deadline-extensions',
 
   /** Dashboard endpoints. */
   DASHBOARD_STATS: '/v1/dashboard/stats',

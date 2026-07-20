@@ -59,4 +59,11 @@ public class User extends BaseEntity {
      */
     @Column(nullable = false)
     private boolean enabled = true;
+
+    /**
+     * Optional contact number in international format without '+'
+     * (e.g. "91XXXXXXXXXX").
+     */
+    @Column(length = 20)
+    private String phone;
 }

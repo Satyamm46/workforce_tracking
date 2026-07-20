@@ -14,6 +14,13 @@ import ReportsPage from '../pages/ReportsPage';
 import UsersPage from '../pages/UsersPage';
 import CreateUserPage from '../pages/CreateUserPage';
 import RegistrationAdminPage from '../pages/RegistrationAdminPage';
+import MySchedulePage from '../pages/MySchedulePage';
+import ScheduleAdminPage from '../pages/ScheduleAdminPage';
+import MyWorkReportsPage from '../pages/MyWorkReportsPage';
+import WorkReportsAdminPage from '../pages/WorkReportsAdminPage';
+import MyLectureSummariesPage from '../pages/MyLectureSummariesPage';
+import LectureSummariesAdminPage from '../pages/LectureSummariesAdminPage';
+import DeadlineExtensionsAdminPage from '../pages/DeadlineExtensionsAdminPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
 /**
@@ -41,6 +48,13 @@ const AppRoutes = () => {
         <Route path="/users" element={<UsersPage />} />
         <Route path="/users/new" element={<CreateUserPage />} />
         <Route path="/admin/registrations" element={<RegistrationAdminPage />} />
+        <Route path="/schedule" element={<MySchedulePage />} />
+        <Route path="/admin/schedules" element={<ScheduleAdminPage />} />
+        <Route path="/work-reports" element={<MyWorkReportsPage />} />
+        <Route path="/admin/work-reports" element={<WorkReportsAdminPage />} />
+        <Route path="/lecture-summaries" element={<MyLectureSummariesPage />} />
+        <Route path="/admin/lecture-summaries" element={<LectureSummariesAdminPage />} />
+        <Route path="/admin/deadline-extensions" element={<DeadlineExtensionsAdminPage />} />
       </Route>
 
       {/* Catch-all */}

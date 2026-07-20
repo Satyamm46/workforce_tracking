@@ -21,11 +21,13 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
+import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import CoffeeIcon from '@mui/icons-material/Coffee';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import MainLayout from '../layouts/MainLayout';
 import AttendanceStatusChip from '../components/AttendanceStatusChip';
+import AttendanceFlagChips from '../components/AttendanceFlagChips';
 import { attendanceService } from '../services/attendanceService';
 import { formatMinutes, formatTime } from '../utils/formatters';
 
@@ -46,6 +48,7 @@ const MyAttendancePage = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [clockingOut, setClockingOut] = useState(false);
   const [breakBusy, setBreakBusy] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(false);
 
   const loadToday = useCallback(async () => {
     setTodayLoading(true);
@@ -98,6 +101,20 @@ const MyAttendancePage = () => {
     }
   };
 
+  const handleCheckIn = async () => {
+    setCheckingIn(true);
+    setError(null);
+    try {
+      const response = await attendanceService.checkIn();
+      setToday(response.data);
+      await loadHistory(page);
+    } catch (err) {
+      setError(err?.message ?? 'Check-in failed.');
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
   const handleBreakToggle = async () => {
     setBreakBusy(true);
     setError(null);
@@ -142,9 +159,19 @@ const MyAttendancePage = () => {
                 <CircularProgress size={28} />
               </Box>
             ) : !today ? (
-              <Alert severity="info">
-                No attendance record for today. It is created automatically when you log in.
-              </Alert>
+              <Stack spacing={2} alignItems="flex-start">
+                <Alert severity="info">
+                  No attendance record for today. Check in to start your working day.
+                </Alert>
+                <Button
+                  variant="contained"
+                  startIcon={<LoginIcon />}
+                  onClick={handleCheckIn}
+                  disabled={checkingIn}
+                >
+                  {checkingIn ? <CircularProgress size={22} color="inherit" /> : 'Check In'}
+                </Button>
+              </Stack>
             ) : (
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
@@ -158,7 +185,10 @@ const MyAttendancePage = () => {
                       Status
                     </Typography>
                     <Box sx={{ mt: 0.5 }}>
-                      <AttendanceStatusChip status={today.status} />
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                        <AttendanceStatusChip status={today.status} />
+                        <AttendanceFlagChips record={today} />
+                      </Stack>
                     </Box>
                   </Box>
                   <Box>
@@ -205,15 +235,29 @@ const MyAttendancePage = () => {
                     )}
                   </Button>
 
-                  <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<LogoutIcon />}
-                    onClick={() => setConfirmOpen(true)}
-                    disabled={today.status === 'CHECKED_OUT'}
-                  >
-                    {today.status === 'CHECKED_OUT' ? 'Day Ended' : 'Clock Out'}
-                  </Button>
+                  {today.status === 'CHECKED_OUT' ? (
+                    <Button
+                      variant="contained"
+                      startIcon={<LoginIcon />}
+                      onClick={handleCheckIn}
+                      disabled={checkingIn}
+                    >
+                      {checkingIn ? (
+                        <CircularProgress size={22} color="inherit" />
+                      ) : (
+                        'Check In Again'
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="contained"
+                      color="error"
+                      startIcon={<LogoutIcon />}
+                      onClick={() => setConfirmOpen(true)}
+                    >
+                      Clock Out
+                    </Button>
+                  )}
                 </Stack>
               </Stack>
             )}
@@ -253,7 +297,10 @@ const MyAttendancePage = () => {
                         <TableCell>{formatMinutes(record.totalBreakMinutes)}</TableCell>
                         <TableCell>{formatMinutes(record.workingMinutes)}</TableCell>
                         <TableCell>
-                          <AttendanceStatusChip status={record.status} />
+                          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                            <AttendanceStatusChip status={record.status} />
+                            <AttendanceFlagChips record={record} />
+                          </Stack>
                         </TableCell>
                       </TableRow>
                     ))}

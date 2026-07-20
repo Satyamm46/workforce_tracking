@@ -57,8 +57,9 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtUtil.generateAccessToken(user.getEmail(), user.getRole().name());
 
-        // Announce the successful login. Auth knows nothing about who listens
-        // (attendance today; notifications and dashboard in later milestones).
+        // Announce the successful login. Auth knows nothing about who listens.
+        // (No listener today — attendance is started manually via Check In —
+        // but the event stays for future consumers, e.g. audit logging.)
         eventPublisher.publishEvent(new UserLoggedInEvent(
                 user.getId(), user.getEmail(), user.getFullName(), user.getRole()));
 

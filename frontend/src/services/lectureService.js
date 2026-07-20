@@ -29,11 +29,9 @@ export const getLecturesByDate = (date = null, page = 0, size = 20) => {
   return apiClient.get(API_PATHS.LECTURES, { params });
 };
 
-export const lectureService = {
-  scheduleLecture,
-  getMyUpcomingLectures,
-  cancelLecture,
-  getLecturesByDate,
+/** Teacher: starts one of their own scheduled lectures (session shifts to now). */
+export const startLecture = (id) => {
+  return apiClient.patch(`${API_PATHS.LECTURES}/${id}/start`);
 };
 
 /** Teacher: ends one of their own live lectures. */
@@ -46,3 +44,18 @@ export const extendLecture = (id, minutes) => {
   return apiClient.patch(`${API_PATHS.LECTURES}/${id}/extend`, { minutes });
 };
 
+/** Teacher: reschedules one of their own missed/cancelled lectures to a new slot. */
+export const rescheduleLecture = (id, payload) => {
+  return apiClient.patch(`${API_PATHS.LECTURES}/${id}/reschedule`, payload);
+};
+
+export const lectureService = {
+  scheduleLecture,
+  getMyUpcomingLectures,
+  cancelLecture,
+  getLecturesByDate,
+  startLecture,
+  endLecture,
+  extendLecture,
+  rescheduleLecture,
+};

@@ -24,14 +24,15 @@ public class UserMapper {
      * @return the outbound DTO
      */
     public UserResponse toUserResponse(User user) {
-    return new UserResponse(
-            user.getId(),
-            user.getFullName(),
-            user.getEmail(),
-            user.getRole(),
-            user.isEnabled()
-    );
-}
+        return new UserResponse(
+                user.getId(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getRole(),
+                user.isEnabled()
+        );
+    }
 
     /**
      * Builds a new User entity from a create request.

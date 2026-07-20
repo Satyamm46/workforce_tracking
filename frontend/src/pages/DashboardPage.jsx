@@ -7,14 +7,36 @@ import { dashboardService } from '../services/dashboardService';
 
 const WS_URL = API_BASE_URL.replace(/^http/, 'ws') + '/ws';
 
-/** One statistic tile. Presentational only. */
+/** One statistic tile. Presentational only. `color` is a theme path used for
+ *  the value text and a thin accent bar down the card's left edge. */
 const StatCard = ({ label, value, color = 'text.primary' }) => (
-  <Card elevation={2}>
-    <CardContent>
-      <Typography variant="caption" color="text.secondary">
+  <Card
+    sx={{
+      height: '100%',
+      position: 'relative',
+      overflow: 'hidden',
+      transition: 'box-shadow 150ms ease, transform 150ms ease',
+      '&:hover': { boxShadow: 6, transform: 'translateY(-2px)' },
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 4,
+        bgcolor: color === 'text.primary' ? 'primary.main' : color,
+      },
+    }}
+  >
+    <CardContent sx={{ pl: 2.5 }}>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.5 }}
+      >
         {label}
       </Typography>
-      <Typography variant="h3" fontWeight={700} color={color}>
+      <Typography variant="h3" fontWeight={700} color={color} sx={{ mt: 0.5 }}>
         {value}
       </Typography>
     </CardContent>

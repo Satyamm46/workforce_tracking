@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.institute.workforce_tracking.dto.request.ExtendLectureRequest;
+import com.institute.workforce_tracking.dto.request.RescheduleLectureRequest;
 import com.institute.workforce_tracking.dto.request.ScheduleLectureRequest;
 import com.institute.workforce_tracking.dto.response.LectureResponse;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
@@ -20,6 +21,8 @@ import com.institute.workforce_tracking.entity.Lecture;
 import com.institute.workforce_tracking.entity.User;
 import com.institute.workforce_tracking.enums.LectureStatus;
 import com.institute.workforce_tracking.event.LectureEndingSoonEvent;
+import com.institute.workforce_tracking.event.LectureMissedEvent;
+import com.institute.workforce_tracking.event.LectureStartingSoonEvent;
 import com.institute.workforce_tracking.exception.BadRequestException;
 import com.institute.workforce_tracking.exception.ResourceNotFoundException;
 import com.institute.workforce_tracking.mapper.LectureMapper;
@@ -41,6 +44,7 @@ public class LectureServiceImpl implements LectureService {
 
     private static final int MAX_EXTENSION_MINUTES = 30;
     private static final int REMINDER_WINDOW_MINUTES = 5;
+    private static final int EARLY_START_ALLOWANCE_MINUTES = 10;
 
     private final LectureRepository lectureRepository;
     private final UserRepository userRepository;
@@ -140,6 +144,30 @@ public class LectureServiceImpl implements LectureService {
 
     @Override
     @Transactional
+    public LectureResponse startLecture(String teacherEmail, Long lectureId) {
+        Lecture lecture = findOwnedLecture(teacherEmail, lectureId);
+        if (lecture.getStatus() != LectureStatus.SCHEDULED) {
+            throw new BadRequestException("Only scheduled lectures can be started.");
+        }
+        if (!lecture.getLectureDate().isEqual(DateTimeUtil.today())) {
+            throw new BadRequestException("A lecture can only be started on its scheduled day.");
+        }
+
+        LocalTime now = DateTimeUtil.now().toLocalTime();
+        if (now.isBefore(lecture.getStartTime().minusMinutes(EARLY_START_ALLOWANCE_MINUTES))) {
+            throw new BadRequestException("Too early — you can start up to "
+                    + EARLY_START_ALLOWANCE_MINUTES + " minutes before the scheduled time.");
+        }
+
+        // A late start shifts the session: the planned length is preserved
+        // from this moment, so the effective end recalculates automatically.
+        lecture.setActualStartTime(now);
+        lecture.setStatus(LectureStatus.LIVE);
+        return lectureMapper.toLectureResponse(lectureRepository.save(lecture));
+    }
+
+    @Override
+    @Transactional
     public LectureResponse extendLecture(String teacherEmail, Long lectureId,
                                          ExtendLectureRequest request) {
         Lecture lecture = findOwnedLecture(teacherEmail, lectureId);
@@ -160,12 +188,68 @@ public class LectureServiceImpl implements LectureService {
 
     @Override
     @Transactional
-    public int goLiveDueLectures() {
-        List<Lecture> due = lectureRepository.findByStatusAndLectureDateAndStartTimeLessThanEqual(
-                LectureStatus.SCHEDULED, DateTimeUtil.today(), DateTimeUtil.now().toLocalTime());
-        due.forEach(lecture -> lecture.setStatus(LectureStatus.LIVE));
-        lectureRepository.saveAll(due);
-        return due.size();
+    public LectureResponse rescheduleLecture(String teacherEmail, Long lectureId,
+                                             RescheduleLectureRequest request) {
+        Lecture original = findOwnedLecture(teacherEmail, lectureId);
+        if (original.getStatus() != LectureStatus.MISSED
+                && original.getStatus() != LectureStatus.CANCELLED) {
+            throw new BadRequestException("Only missed or cancelled lectures can be rescheduled.");
+        }
+
+        if (!request.endTime().isAfter(request.startTime())) {
+            throw new BadRequestException("End time must be after start time.");
+        }
+        if (request.lectureDate().isEqual(DateTimeUtil.today())
+                && request.startTime().isBefore(DateTimeUtil.now().toLocalTime())) {
+            throw new BadRequestException("Start time has already passed for today.");
+        }
+        if (lectureRepository.existsConflictingLecture(
+                original.getTeacher(), request.lectureDate(),
+                request.startTime(), request.endTime())) {
+            throw new BadRequestException(
+                    "This time overlaps another of your scheduled lectures on that day.");
+        }
+
+        // A fresh lecture carries the session forward; the original stays on
+        // record as missed/cancelled so reports remain honest.
+        Lecture rescheduled = new Lecture();
+        rescheduled.setTeacher(original.getTeacher());
+        rescheduled.setSubject(original.getSubject());
+        rescheduled.setClassName(original.getClassName());
+        rescheduled.setBatch(original.getBatch());
+        rescheduled.setLectureDate(request.lectureDate());
+        rescheduled.setStartTime(request.startTime());
+        rescheduled.setEndTime(request.endTime());
+        rescheduled.setStatus(LectureStatus.SCHEDULED);
+
+        return lectureMapper.toLectureResponse(lectureRepository.save(rescheduled));
+    }
+
+    @Override
+    @Transactional
+    public int publishStartReminders() {
+        LocalDate today = DateTimeUtil.today();
+        LocalTime now = DateTimeUtil.now().toLocalTime();
+
+        List<Lecture> startingSoon = lectureRepository.findByStatus(LectureStatus.SCHEDULED).stream()
+                .filter(lecture -> !lecture.isStartReminderSent()
+                        && lecture.getLectureDate().isEqual(today)
+                        && lecture.getStartTime().isAfter(now)
+                        && !lecture.getStartTime().isAfter(now.plusMinutes(REMINDER_WINDOW_MINUTES)))
+                .toList();
+
+        for (Lecture lecture : startingSoon) {
+            eventPublisher.publishEvent(new LectureStartingSoonEvent(
+                    lecture.getId(),
+                    lecture.getTeacher().getId(),
+                    lecture.getTeacher().getEmail(),
+                    lecture.getSubject(),
+                    lecture.getClassName(),
+                    lecture.getStartTime()));
+            lecture.setStartReminderSent(true);
+        }
+        lectureRepository.saveAll(startingSoon);
+        return startingSoon.size();
     }
 
     @Override
@@ -174,15 +258,35 @@ public class LectureServiceImpl implements LectureService {
         LocalDate today = DateTimeUtil.today();
         LocalTime now = DateTimeUtil.now().toLocalTime();
 
+        // Live lectures past their effective end (which accounts for a late
+        // actual start and any extensions) finish automatically.
         List<Lecture> overdue = lectureRepository.findByStatus(LectureStatus.LIVE).stream()
                 .filter(lecture -> lecture.getLectureDate().isBefore(today)
                         || (lecture.getLectureDate().isEqual(today)
                             && !lecture.getEffectiveEndTime().isAfter(now)))
                 .toList();
-
         overdue.forEach(lecture -> lecture.setStatus(LectureStatus.COMPLETED));
         lectureRepository.saveAll(overdue);
-        return overdue.size();
+
+        // Never-started lectures whose scheduled end has passed are missed —
+        // auto-cancelled, with a notification pointing at Reschedule.
+        List<Lecture> missed = lectureRepository.findByStatus(LectureStatus.SCHEDULED).stream()
+                .filter(lecture -> lecture.getLectureDate().isBefore(today)
+                        || (lecture.getLectureDate().isEqual(today)
+                            && !lecture.getEndTime().isAfter(now)))
+                .toList();
+        missed.forEach(lecture -> {
+            lecture.setStatus(LectureStatus.MISSED);
+            eventPublisher.publishEvent(new LectureMissedEvent(
+                    lecture.getId(),
+                    lecture.getTeacher().getId(),
+                    lecture.getTeacher().getEmail(),
+                    lecture.getSubject(),
+                    lecture.getClassName()));
+        });
+        lectureRepository.saveAll(missed);
+
+        return overdue.size() + missed.size();
     }
 
     @Override

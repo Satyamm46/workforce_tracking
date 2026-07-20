@@ -7,6 +7,8 @@ const STATUS_CONFIG = {
   LIVE: { color: 'success', label: 'Live' },
   COMPLETED: { color: 'default', label: 'Completed' },
   CANCELLED: { color: 'error', label: 'Cancelled' },
+  MISSED: { color: 'warning', label: 'Missed' },
+  SUMMARY_MISSED: { color: 'error', label: 'No Summary' },
 };
 
 /** Renders a lecture status as a coloured chip. Presentational only. */

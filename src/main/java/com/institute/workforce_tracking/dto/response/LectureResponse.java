@@ -17,8 +17,9 @@ import com.institute.workforce_tracking.enums.LectureStatus;
  * @param lectureDate     the day
  * @param startTime       scheduled start
  * @param endTime         scheduled end (before extensions)
+ * @param actualStartTime when the teacher actually started; null until started
  * @param extendedMinutes minutes added by extensions
- * @param effectiveEndTime endTime plus extensions — when the lecture actually ends
+ * @param effectiveEndTime when the lecture actually ends (shifted by a late start, plus extensions)
  * @param status          lifecycle state
  */
 public record LectureResponse(
@@ -31,6 +32,7 @@ public record LectureResponse(
         LocalDate lectureDate,
         LocalTime startTime,
         LocalTime endTime,
+        LocalTime actualStartTime,
         int extendedMinutes,
         LocalTime effectiveEndTime,
         LectureStatus status

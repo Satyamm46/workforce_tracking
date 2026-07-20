@@ -25,8 +25,9 @@ public class LectureMapper {
                 lecture.getLectureDate(),
                 lecture.getStartTime(),
                 lecture.getEndTime(),
+                lecture.getActualStartTime(),
                 lecture.getExtendedMinutes(),
-                lecture.getEndTime().plusMinutes(lecture.getExtendedMinutes()),
+                lecture.getEffectiveEndTime(),
                 lecture.getStatus()
         );
     }

@@ -48,6 +48,10 @@ public class RegistrationRequest extends BaseEntity {
     @Column(nullable = false)
     private String password;
 
+    /** Optional contact number (international format, no '+'), copied on approval. */
+    @Column(length = 20)
+    private String phone;
+
     /**
      * The role the applicant asked for. The Super Admin may assign a different
      * role when approving; this field records what was requested.

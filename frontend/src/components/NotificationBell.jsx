@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Badge,
   Box,
@@ -13,8 +13,10 @@ import {
   Typography,
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import { useNotifications } from '../context/NotificationContext';
+import { pushService } from '../services/pushService';
 import { formatTime } from '../utils/formatters';
 
 /**
@@ -24,8 +26,32 @@ import { formatTime } from '../utils/formatters';
 const NotificationBell = () => {
   const { notifications, unreadCount, markAllRead } = useNotifications();
   const [anchorEl, setAnchorEl] = useState(null);
+  // null = checking, false = can offer enabling, true = already enabled
+  const [pushEnabled, setPushEnabled] = useState(null);
+  const [pushError, setPushError] = useState(null);
 
   const open = Boolean(anchorEl);
+
+  useEffect(() => {
+    if (!pushService.isPushSupported()) {
+      setPushEnabled(true); // unsupported → simply don't offer the button
+      return;
+    }
+    pushService
+      .isSubscribed()
+      .then((subscribed) => setPushEnabled(subscribed))
+      .catch(() => setPushEnabled(true));
+  }, []);
+
+  const handleEnablePush = async () => {
+    setPushError(null);
+    try {
+      await pushService.enablePush();
+      setPushEnabled(true);
+    } catch (err) {
+      setPushError(err?.message ?? 'Could not enable push notifications.');
+    }
+  };
 
   const handleMarkAllRead = async () => {
     try {
@@ -67,6 +93,28 @@ const NotificationBell = () => {
             )}
           </Stack>
           <Divider />
+
+          {pushEnabled === false && (
+            <>
+              <Box sx={{ px: 2, py: 1 }}>
+                <Button
+                  size="small"
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<NotificationsActiveIcon />}
+                  onClick={handleEnablePush}
+                >
+                  Enable notifications on this device
+                </Button>
+                {pushError && (
+                  <Typography variant="caption" color="error">
+                    {pushError}
+                  </Typography>
+                )}
+              </Box>
+              <Divider />
+            </>
+          )}
 
           {notifications.length === 0 ? (
             <Box sx={{ p: 4, textAlign: 'center' }}>

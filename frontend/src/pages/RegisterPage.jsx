@@ -34,6 +34,7 @@ const RegisterPage = () => {
     fullName: '',
     email: '',
     password: '',
+    phone: '',
     requestedRole: 'EMPLOYEE',
   });
   const [error, setError] = useState(null);
@@ -133,6 +134,16 @@ const RegisterPage = () => {
                   fullWidth
                   autoComplete="new-password"
                   helperText="At least 8 characters"
+                  disabled={submitting}
+                />
+
+                <TextField
+                  label="Phone Number (optional)"
+                  value={form.phone}
+                  onChange={handleChange('phone')}
+                  fullWidth
+                  autoComplete="tel"
+                  helperText="Digits only with country code, e.g. 91XXXXXXXXXX"
                   disabled={submitting}
                 />
 

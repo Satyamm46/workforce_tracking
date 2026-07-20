@@ -64,6 +64,20 @@ public class Lecture extends BaseEntity {
     private LocalTime endTime;
 
     /**
+     * When the teacher actually started the class; null until started.
+     * A late start shifts the whole session: the class keeps its planned
+     * length, so the effective end is recalculated from this moment.
+     */
+    private LocalTime actualStartTime;
+
+    /**
+     * Whether the "starting soon" reminder (5 minutes before the scheduled
+     * start) has been sent to the teacher. Prevents re-firing every tick.
+     */
+    @Column(nullable = false)
+    private boolean startReminderSent = false;
+
+    /**
      * Minutes added by extensions (tracking milestone; capped at 30).
      * The effective end of a lecture is endTime plus this value.
      */
@@ -83,11 +97,20 @@ public class Lecture extends BaseEntity {
     @Column(nullable = false)
     private boolean reminderSent = false;
 
-        /**
-     * When this lecture actually ends: the scheduled end plus any extensions.
-     * Derived — never stored — so it cannot disagree with its inputs.
+    /**
+     * When this lecture actually ends.
+     *
+     * <p>Once the teacher has started the class, the session keeps its
+     * planned length but shifts to the actual start (a 1–2pm class started
+     * at 1:15 ends at 2:15), plus any extensions. Before the class starts,
+     * it is simply the scheduled end plus extensions. Derived — never
+     * stored — so it cannot disagree with its inputs.</p>
      */
     public java.time.LocalTime getEffectiveEndTime() {
+        long plannedMinutes = java.time.Duration.between(startTime, endTime).toMinutes();
+        if (actualStartTime != null) {
+            return actualStartTime.plusMinutes(plannedMinutes + extendedMinutes);
+        }
         return endTime.plusMinutes(extendedMinutes);
     }
 

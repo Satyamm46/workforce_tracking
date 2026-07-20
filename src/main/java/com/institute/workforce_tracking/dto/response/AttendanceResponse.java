@@ -21,6 +21,9 @@ import com.institute.workforce_tracking.enums.AttendanceStatus;
  * @param totalBreakMinutes accumulated break minutes (0 until breaks exist)
  * @param workingMinutes    minutes worked so far (final once checked out)
  * @param status            current state of the working day
+ * @param lateArrival       checked in past the grace period after the planned start
+ * @param halfDay           the day counts as a half day (late-arrival penalty)
+ * @param absentNoReport    marked absent for not submitting a work report in time
  */
 public record AttendanceResponse(
         Long id,
@@ -31,6 +34,9 @@ public record AttendanceResponse(
         LocalDateTime logoutTime,
         int totalBreakMinutes,
         long workingMinutes,
-        AttendanceStatus status
+        AttendanceStatus status,
+        boolean lateArrival,
+        boolean halfDay,
+        boolean absentNoReport
 ) {
 }

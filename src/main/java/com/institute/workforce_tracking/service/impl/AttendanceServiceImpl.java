@@ -3,10 +3,11 @@ package com.institute.workforce_tracking.service.impl;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +21,8 @@ import com.institute.workforce_tracking.entity.Attendance;
 import com.institute.workforce_tracking.entity.User;
 import com.institute.workforce_tracking.entity.WorkBreak;
 import com.institute.workforce_tracking.enums.AttendanceStatus;
-import com.institute.workforce_tracking.event.UserLoggedInEvent;
+import com.institute.workforce_tracking.event.AttendanceAutoActionEvent;
+import com.institute.workforce_tracking.event.LateArrivalEvent;
 import com.institute.workforce_tracking.exception.BadRequestException;
 import com.institute.workforce_tracking.exception.ResourceNotFoundException;
 import com.institute.workforce_tracking.mapper.AttendanceMapper;
@@ -28,6 +30,8 @@ import com.institute.workforce_tracking.repository.AttendanceRepository;
 import com.institute.workforce_tracking.repository.UserRepository;
 import com.institute.workforce_tracking.repository.WorkBreakRepository;
 import com.institute.workforce_tracking.service.AttendanceService;
+import com.institute.workforce_tracking.service.PresenceService;
+import com.institute.workforce_tracking.service.WorkPlanService;
 import com.institute.workforce_tracking.util.DateTimeUtil;
 import com.institute.workforce_tracking.util.PageUtils;
 
@@ -42,42 +46,87 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     private static final Logger log = LoggerFactory.getLogger(AttendanceServiceImpl.class);
 
+    /** Minutes past the planned start before a check-in counts as late. */
+    private static final int LATE_GRACE_MINUTES = 15;
+
     private final AttendanceRepository attendanceRepository;
     private final WorkBreakRepository workBreakRepository;
     private final UserRepository userRepository;
     private final AttendanceMapper attendanceMapper;
+    private final PresenceService presenceService;
+    private final WorkPlanService workPlanService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AttendanceServiceImpl(AttendanceRepository attendanceRepository,
                                  WorkBreakRepository workBreakRepository,
                                  UserRepository userRepository,
-                                 AttendanceMapper attendanceMapper) {
+                                 AttendanceMapper attendanceMapper,
+                                 PresenceService presenceService,
+                                 WorkPlanService workPlanService,
+                                 ApplicationEventPublisher eventPublisher) {
         this.attendanceRepository = attendanceRepository;
         this.workBreakRepository = workBreakRepository;
         this.userRepository = userRepository;
         this.attendanceMapper = attendanceMapper;
+        this.presenceService = presenceService;
+        this.workPlanService = workPlanService;
+        this.eventPublisher = eventPublisher;
     }
 
-    @EventListener
-    public void onUserLoggedIn(UserLoggedInEvent event) {
-        try {
-            LocalDate today = DateTimeUtil.today();
-            User user = userRepository.getReferenceById(event.userId());
+    @Override
+    @Transactional
+    public AttendanceResponse checkIn(String email) {
+        User user = findUserByEmail(email);
+        LocalDate today = DateTimeUtil.today();
+        LocalDateTime now = DateTimeUtil.now();
 
-            if (attendanceRepository.findByUserAndWorkDate(user, today).isPresent()) {
-                return; // already clocked in today — idempotent
-            }
+        // Admins and Employees must have declared today's plan (submitted the
+        // evening before, or late via the plan page) before starting the day.
+        if (workPlanService.isPlanRequired(user) && !workPlanService.hasPlan(user, today)) {
+            throw new BadRequestException(
+                    "You have not submitted a work plan for today. "
+                            + "Submit it on the My Schedule page, then check in.");
+        }
 
-            Attendance attendance = new Attendance();
+        Attendance attendance = attendanceRepository.findByUserAndWorkDate(user, today)
+                .orElse(null);
+
+        if (attendance == null) {
+            // First check-in of the day. Deliberately manual — logging in does
+            // NOT start the working day; pressing Check In does.
+            attendance = new Attendance();
             attendance.setUser(user);
             attendance.setWorkDate(today);
-            attendance.setLoginTime(DateTimeUtil.now());
+            attendance.setLoginTime(now);
             attendance.setStatus(AttendanceStatus.WORKING);
-            attendanceRepository.save(attendance);
-
-            log.info("Clock-in recorded for user {} on {}", event.userId(), today);
-        } catch (Exception ex) {
-            log.error("Failed to record clock-in for user {}", event.userId(), ex);
+            applyLateArrivalPenalty(user, attendance, today, now);
+            log.info("Check-in recorded for {} on {}", email, today);
+            return attendanceMapper.toAttendanceResponse(attendanceRepository.save(attendance));
         }
+
+        if (attendance.getStatus() != AttendanceStatus.CHECKED_OUT) {
+            throw new BadRequestException("You are already checked in for today.");
+        }
+
+        // Reopen the day: the time between clock-out and now is recorded as a
+        // completed break so the final working-minutes math stays correct
+        // (working = last logout − first login − total breaks).
+        WorkBreak awayGap = new WorkBreak();
+        awayGap.setAttendance(attendance);
+        awayGap.setStartTime(attendance.getLogoutTime());
+        awayGap.setEndTime(now);
+        long awayMinutes = Duration.between(attendance.getLogoutTime(), now).toMinutes();
+        awayGap.setDurationMinutes((int) Math.max(awayMinutes, 0));
+        workBreakRepository.save(awayGap);
+
+        attendance.setTotalBreakMinutes(
+                attendance.getTotalBreakMinutes() + awayGap.getDurationMinutes());
+        attendance.setLogoutTime(null);
+        attendance.setWorkingMinutes(null);
+        attendance.setStatus(AttendanceStatus.WORKING);
+
+        log.info("Re-check-in for {} after {} minutes away", email, awayGap.getDurationMinutes());
+        return attendanceMapper.toAttendanceResponse(attendanceRepository.save(attendance));
     }
 
     @Override
@@ -190,6 +239,66 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
 
+    @Override
+    @Transactional
+    public int autoBreakAbsentUsers(long graceSeconds) {
+        List<Attendance> working = attendanceRepository
+                .findByWorkDateAndStatus(DateTimeUtil.today(), AttendanceStatus.WORKING);
+
+        int placed = 0;
+        for (Attendance attendance : working) {
+            String email = attendance.getUser().getEmail();
+            if (!presenceService.isOffline(email, graceSeconds)) {
+                continue;
+            }
+
+            WorkBreak workBreak = new WorkBreak();
+            workBreak.setAttendance(attendance);
+            workBreak.setStartTime(DateTimeUtil.now());
+            workBreak.setAutoStarted(true);
+            workBreakRepository.save(workBreak);
+
+            attendance.setStatus(AttendanceStatus.ON_BREAK);
+            attendanceRepository.save(attendance);
+
+            eventPublisher.publishEvent(new AttendanceAutoActionEvent(
+                    attendance.getUser().getId(), email, false));
+            placed++;
+            log.info("Auto-break started for {} (offline beyond grace period)", email);
+        }
+        return placed;
+    }
+
+    @Override
+    @Transactional
+    public int autoCheckoutOverdueBreaks(long maxBreakMinutes) {
+        LocalDateTime cutoff = DateTimeUtil.now().minusMinutes(maxBreakMinutes);
+        List<WorkBreak> overdue =
+                workBreakRepository.findByEndTimeIsNullAndAutoStartedTrueAndStartTimeBefore(cutoff);
+
+        int checkedOut = 0;
+        for (WorkBreak workBreak : overdue) {
+            Attendance attendance = workBreak.getAttendance();
+            LocalDateTime logoutTime = DateTimeUtil.now();
+
+            closeOpenBreak(attendance, logoutTime);
+
+            long workedMinutes = Duration.between(attendance.getLoginTime(), logoutTime).toMinutes()
+                    - attendance.getTotalBreakMinutes();
+            attendance.setLogoutTime(logoutTime);
+            attendance.setWorkingMinutes((int) Math.max(workedMinutes, 0));
+            attendance.setStatus(AttendanceStatus.CHECKED_OUT);
+            attendanceRepository.save(attendance);
+
+            eventPublisher.publishEvent(new AttendanceAutoActionEvent(
+                    attendance.getUser().getId(), attendance.getUser().getEmail(), true));
+            checkedOut++;
+            log.info("Auto-checkout for {} (auto-break exceeded {} minutes)",
+                    attendance.getUser().getEmail(), maxBreakMinutes);
+        }
+        return checkedOut;
+    }
+
     /**
      * Closes the open break (if any) at the given end time: stores its
      * duration and accumulates it onto the attendance's total.
@@ -206,6 +315,33 @@ public class AttendanceServiceImpl implements AttendanceService {
                     attendance.setTotalBreakMinutes(
                             attendance.getTotalBreakMinutes() + workBreak.getDurationMinutes());
                 });
+    }
+
+    /**
+     * Flags the first check-in of the day as a late arrival (and the day as a
+     * half day) when it comes more than the grace period after the start time
+     * the user declared in their work plan. Users without a plan requirement
+     * (teachers, super admin) are never penalized here.
+     */
+    private void applyLateArrivalPenalty(User user, Attendance attendance,
+                                         LocalDate today, LocalDateTime now) {
+        if (!workPlanService.isPlanRequired(user)) {
+            return;
+        }
+        workPlanService.getPlannedStartTime(user, today).ifPresent(plannedStart -> {
+            LocalDateTime graceLimit = today.atTime(plannedStart)
+                    .plusMinutes(LATE_GRACE_MINUTES);
+            if (now.isAfter(graceLimit)) {
+                long minutesLate = Duration
+                        .between(today.atTime(plannedStart), now).toMinutes();
+                attendance.setLateArrival(true);
+                attendance.setHalfDay(true);
+                eventPublisher.publishEvent(new LateArrivalEvent(
+                        user.getId(), user.getEmail(), plannedStart, minutesLate));
+                log.info("Late arrival for {}: planned {}, checked in {} min late — half day",
+                        user.getEmail(), plannedStart, minutesLate);
+            }
+        });
     }
 
     /** Loads the caller's attendance record for today, or 404. */

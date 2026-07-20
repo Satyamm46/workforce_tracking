@@ -51,6 +51,18 @@
 			<artifactId>spring-boot-starter-websocket</artifactId>
 		</dependency>
 
+		<!-- ===== Web Push (VAPID) — browser push notifications ===== -->
+		<dependency>
+			<groupId>nl.martijndwars</groupId>
+			<artifactId>web-push</artifactId>
+			<version>5.1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk18on</artifactId>
+			<version>1.78.1</version>
+		</dependency>
+
 		<!-- ===== JWT (jjwt) — not on Initializr, added manually ===== -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>

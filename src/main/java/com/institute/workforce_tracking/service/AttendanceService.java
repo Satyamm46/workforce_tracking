@@ -11,6 +11,15 @@ import com.institute.workforce_tracking.dto.response.PagedResponse;
 public interface AttendanceService {
 
     /**
+     * Starts (or restarts) the caller's working day.
+     *
+     * <p>With no record today it clocks in fresh. After a clock-out it reopens
+     * the day: the time away is recorded as a completed break, and work
+     * continues on the same record. Invalid while already WORKING/ON_BREAK.</p>
+     */
+    AttendanceResponse checkIn(String email);
+
+    /**
      * Ends the caller's working day. Any open break is auto-closed first, so
      * final working minutes account for it.
      */
@@ -42,5 +51,24 @@ public interface AttendanceService {
      */
     void markLeaveDays(com.institute.workforce_tracking.entity.User user,
                        java.time.LocalDate startDate, java.time.LocalDate endDate);
+
+    /**
+     * Sweep: places every WORKING user whose browser has been disconnected
+     * beyond the grace period on a system-started break. Called by the
+     * attendance scheduler.
+     *
+     * @param graceSeconds how long a user must be offline before acting
+     * @return how many users were placed on a break
+     */
+    int autoBreakAbsentUsers(long graceSeconds);
+
+    /**
+     * Sweep: checks out every user whose system-started break has exceeded
+     * the limit. Manual breaks are never affected. Called by the scheduler.
+     *
+     * @param maxBreakMinutes the auto-break duration limit
+     * @return how many users were checked out
+     */
+    int autoCheckoutOverdueBreaks(long maxBreakMinutes);
 
 }

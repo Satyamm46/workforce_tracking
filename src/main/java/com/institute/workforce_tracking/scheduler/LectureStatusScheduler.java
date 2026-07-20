@@ -11,10 +11,11 @@ import com.institute.workforce_tracking.service.LectureService;
  * Time-driven trigger for lecture lifecycle transitions.
  *
  * <p>Runs once a minute and delegates to {@link LectureService} for the three
- * sweep operations: due lectures go live, overdue lectures complete, and
- * ending-soon reminders are published. This class is a thin, time-triggered
- * adapter — the scheduling counterpart of a controller — and contains no
- * business logic.</p>
+ * sweep operations: starting-soon reminders go to teachers, overdue lectures
+ * complete (or are marked missed if never started), and ending-soon reminders
+ * are published. This class is a thin, time-triggered adapter — the
+ * scheduling counterpart of a controller — and contains no business
+ * logic.</p>
  *
  * <p>Each sweep is individually guarded: a failure in one is logged and must
  * never prevent the others from running, nor kill subsequent ticks.</p>
@@ -35,13 +36,13 @@ public class LectureStatusScheduler {
      */
     @Scheduled(cron = "10 * * * * *")
     public void sweepLectureStatuses() {
-        int wentLive = runSweep("go-live", lectureService::goLiveDueLectures);
+        int startReminders = runSweep("start-reminder", lectureService::publishStartReminders);
         int completed = runSweep("complete", lectureService::completeOverdueLectures);
-        int reminded = runSweep("reminder", lectureService::publishEndingReminders);
+        int endReminders = runSweep("end-reminder", lectureService::publishEndingReminders);
 
-        if (wentLive > 0 || completed > 0 || reminded > 0) {
-            log.info("Lecture sweep: {} went live, {} completed, {} reminders published",
-                    wentLive, completed, reminded);
+        if (startReminders > 0 || completed > 0 || endReminders > 0) {
+            log.info("Lecture sweep: {} start reminders, {} completed/missed, {} end reminders",
+                    startReminders, completed, endReminders);
         }
     }
 

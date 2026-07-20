@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.institute.workforce_tracking.constants.ApiConstants;
 import com.institute.workforce_tracking.dto.request.ExtendLectureRequest;
+import com.institute.workforce_tracking.dto.request.RescheduleLectureRequest;
 import com.institute.workforce_tracking.dto.request.ScheduleLectureRequest;
 import com.institute.workforce_tracking.dto.response.LectureResponse;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
@@ -94,6 +95,30 @@ public class LectureController {
         return ResponseEntity.ok(ApiResponse.of("Lectures retrieved for " + effectiveDate, lectures));
 
     }
+    /** Reschedules one of the caller's own missed/cancelled lectures to a new slot. */
+    @PatchMapping("/{id}/reschedule")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<ApiResponse<LectureResponse>> rescheduleLecture(
+            Authentication authentication,
+            @PathVariable Long id,
+            @Valid @RequestBody RescheduleLectureRequest request) {
+
+        LectureResponse lecture =
+                lectureService.rescheduleLecture(authentication.getName(), id, request);
+        return ResponseEntity.ok(ApiResponse.of("Lecture rescheduled", lecture));
+    }
+
+    /** Starts one of the caller's own scheduled lectures (shifts the session to now). */
+    @PatchMapping("/{id}/start")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<ApiResponse<LectureResponse>> startLecture(
+            Authentication authentication,
+            @PathVariable Long id) {
+
+        LectureResponse lecture = lectureService.startLecture(authentication.getName(), id);
+        return ResponseEntity.ok(ApiResponse.of("Lecture started", lecture));
+    }
+
     /** Ends one of the caller's own live lectures. */
     @PatchMapping("/{id}/end")
     @PreAuthorize("hasRole('TEACHER')")

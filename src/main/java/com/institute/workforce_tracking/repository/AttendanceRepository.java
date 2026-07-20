@@ -65,6 +65,21 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
     /** How many attendance records exist for a day in a given status. */
     long countByWorkDateAndStatus(LocalDate workDate, AttendanceStatus status);
+
+    /** All attendance rows with a specific status, most recent first (for finding last checkout). */
+    Page<Attendance> findByUserAndStatus(User user, AttendanceStatus status, Pageable pageable);
+
+    /** All checked-out attendances whose checkout is before a cutoff (for report deadline sweep). */
+    java.util.List<Attendance> findByStatusAndLogoutTimeLessThanEqual(
+            AttendanceStatus status, java.time.LocalDateTime logoutTime);
+
+    /**
+     * All attendance records for a day in a given status, with the user
+     * pre-fetched. Backs the auto-break sweep, which needs each WORKING
+     * user's email to check their WebSocket presence.
+     */
+    @EntityGraph(attributePaths = "user")
+    java.util.List<Attendance> findByWorkDateAndStatus(LocalDate workDate, AttendanceStatus status);
     
         /**
      * Builds the per-employee attendance summary for a date range in a single
@@ -84,7 +99,9 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
                          THEN 1L ELSE 0L END),
                 SUM(CASE WHEN a.status = com.institute.workforce_tracking.enums.AttendanceStatus.ON_LEAVE
                          THEN 1L ELSE 0L END),
-                SUM(COALESCE(a.workingMinutes, 0)),
+                SUM(CASE WHEN a.absentNoReport = true THEN 0
+                         WHEN a.halfDay = true THEN COALESCE(a.workingMinutes, 0) / 2
+                         ELSE COALESCE(a.workingMinutes, 0) END),
                 SUM(a.totalBreakMinutes)
             )
             FROM Attendance a

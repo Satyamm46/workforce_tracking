@@ -10,8 +10,12 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.institute.workforce_tracking.entity.User;
 import com.institute.workforce_tracking.enums.NotificationType;
 import com.institute.workforce_tracking.enums.Role;
+import com.institute.workforce_tracking.event.AttendanceAutoActionEvent;
+import com.institute.workforce_tracking.event.LateArrivalEvent;
 import com.institute.workforce_tracking.event.LeaveDecidedEvent;
 import com.institute.workforce_tracking.event.LectureEndingSoonEvent;
+import com.institute.workforce_tracking.event.LectureMissedEvent;
+import com.institute.workforce_tracking.event.LectureStartingSoonEvent;
 import com.institute.workforce_tracking.event.RegistrationSubmittedEvent;
 import com.institute.workforce_tracking.repository.UserRepository;
 import com.institute.workforce_tracking.service.EmailService;
@@ -49,9 +53,40 @@ public class NotificationEventListener {
             notificationService.notifyUser(
                     event.teacherId(), event.teacherEmail(), NotificationType.LECTURE_ENDING,
                     "Your " + event.subject() + " lecture for " + event.className()
-                            + " ends at " + event.effectiveEndTime() + ".");
+                            + " is going to end at " + event.effectiveEndTime()
+                            + ". Do you want to extend the session?");
         } catch (Exception ex) {
             log.error("Failed to create lecture-ending notification", ex);
+        }
+    }
+
+    /** Tells the teacher their never-started class was cancelled, with the fix. */
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onLectureMissed(LectureMissedEvent event) {
+        try {
+            notificationService.notifyUser(
+                    event.teacherId(), event.teacherEmail(), NotificationType.LECTURE_MISSED,
+                    "Your " + event.subject() + " lecture for " + event.className()
+                            + " was cancelled because it was not started in its scheduled time. "
+                            + "Use the Reschedule button on My Lectures to pick a new slot.");
+        } catch (Exception ex) {
+            log.error("Failed to create lecture-missed notification", ex);
+        }
+    }
+
+    /** Heads-up to the teacher ~5 minutes before their scheduled start. */
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onLectureStartingSoon(LectureStartingSoonEvent event) {
+        try {
+            notificationService.notifyUser(
+                    event.teacherId(), event.teacherEmail(), NotificationType.LECTURE_STARTING,
+                    "Your " + event.subject() + " lecture for " + event.className()
+                            + " starts at " + event.scheduledStart()
+                            + ". Press Start Class when you begin.");
+        } catch (Exception ex) {
+            log.error("Failed to create lecture-starting notification", ex);
         }
     }
 
@@ -68,6 +103,41 @@ public class NotificationEventListener {
                             + ") was " + verdict + ".");
         } catch (Exception ex) {
             log.error("Failed to create leave-decision notification", ex);
+        }
+    }
+
+    /**
+     * Tells a user the system acted on their attendance: placed on break
+     * after disconnecting, or checked out after the break limit. Delivered
+     * in-app (visible on next login) and via push/WhatsApp through the
+     * notification service's fan-out.
+     */
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onAttendanceAutoAction(AttendanceAutoActionEvent event) {
+        try {
+            NotificationType type = event.checkedOut()
+                    ? NotificationType.AUTO_CHECKED_OUT : NotificationType.AUTO_BREAK_STARTED;
+            String message = event.checkedOut()
+                    ? "You were checked out automatically because your break exceeded the limit."
+                    : "You were placed on a break automatically after disconnecting without logging out.";
+            notificationService.notifyUser(event.userId(), event.email(), type, message);
+        } catch (Exception ex) {
+            log.error("Failed to create attendance auto-action notification", ex);
+        }
+    }
+
+    /** Tells the user their late check-in made today a half day. */
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onLateArrival(LateArrivalEvent event) {
+        try {
+            notificationService.notifyUser(
+                    event.userId(), event.email(), NotificationType.LATE_ARRIVAL,
+                    "You checked in " + event.minutesLate() + " minutes after your planned start ("
+                            + event.plannedStart() + "). Today is counted as a half day.");
+        } catch (Exception ex) {
+            log.error("Failed to create late-arrival notification", ex);
         }
     }
 
