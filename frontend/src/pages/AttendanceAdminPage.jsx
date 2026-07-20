@@ -61,7 +61,7 @@ const AttendanceAdminPage = () => {
             value={date}
             onChange={handleDateChange}
             size="small"
-            InputLabelProps={{ shrink: true }}
+            slotProps={{ inputLabel: { shrink: true } }}
             helperText="Leave empty for today"
           />
         </Stack>

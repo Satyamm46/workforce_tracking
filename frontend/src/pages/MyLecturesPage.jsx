@@ -256,17 +256,17 @@ const MyLecturesPage = () => {
                 <Grid size={{ xs: 12, sm: 3 }}>
                   <TextField label="Date" type="date" value={form.lectureDate}
                     onChange={handleChange('lectureDate')} required fullWidth
-                    InputLabelProps={{ shrink: true }} disabled={submitting} />
+                    slotProps={{ inputLabel: { shrink: true } }} disabled={submitting} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
                   <TextField label="Start" type="time" value={form.startTime}
                     onChange={handleChange('startTime')} required fullWidth
-                    InputLabelProps={{ shrink: true }} disabled={submitting} />
+                    slotProps={{ inputLabel: { shrink: true } }} disabled={submitting} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
                   <TextField label="End" type="time" value={form.endTime}
                     onChange={handleChange('endTime')} required fullWidth
-                    InputLabelProps={{ shrink: true }} disabled={submitting} />
+                    slotProps={{ inputLabel: { shrink: true } }} disabled={submitting} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
                   <Button type="submit" variant="contained" fullWidth

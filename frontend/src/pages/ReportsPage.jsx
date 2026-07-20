@@ -80,7 +80,7 @@ const ReportsPage = () => {
           <TextField
             label="Month" type="month" size="small" value={month}
             onChange={(e) => setMonth(e.target.value)}
-            InputLabelProps={{ shrink: true }}
+            slotProps={{ inputLabel: { shrink: true } }}
           />
         </Stack>
 

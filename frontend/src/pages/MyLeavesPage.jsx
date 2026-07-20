@@ -193,7 +193,7 @@ const MyLeavesPage = () => {
                         onChange={handleChange('startDate')}
                         required
                         fullWidth
-                        InputLabelProps={{ shrink: true }}
+                        slotProps={{ inputLabel: { shrink: true } }}
                         disabled={submitting}
                       />
                     </Grid>
@@ -205,7 +205,7 @@ const MyLeavesPage = () => {
                         onChange={handleChange('endDate')}
                         required
                         fullWidth
-                        InputLabelProps={{ shrink: true }}
+                        slotProps={{ inputLabel: { shrink: true } }}
                         disabled={submitting}
                       />
                     </Grid>

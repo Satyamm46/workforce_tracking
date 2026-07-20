@@ -48,7 +48,7 @@ const LectureAdminPage = () => {
           </Box>
           <TextField label="Date" type="date" size="small" value={date}
             onChange={(e) => { setDate(e.target.value); setPage(0); }}
-            InputLabelProps={{ shrink: true }} helperText="Leave empty for today" />
+            slotProps={{ inputLabel: { shrink: true } }} helperText="Leave empty for today" />
         </Stack>
 
         {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
