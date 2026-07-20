@@ -16,11 +16,15 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
 import MainLayout from '../layouts/MainLayout';
 import { lectureSummaryService } from '../services/lectureSummaryService';
-import { formatDateTime } from '../utils/formatters';
+import { formatDateTime, formatTimeOfDay } from '../utils/formatters';
+import { downloadCsv } from '../utils/csv';
 
 const PAGE_SIZE = 20;
+/** Page size used when gathering every row of a day for CSV export. */
+const EXPORT_PAGE_SIZE = 100;
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 /**
@@ -32,6 +36,7 @@ const LectureSummariesAdminPage = () => {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const loadSummaries = useCallback(async (selectedDate, pageNumber) => {
     setLoading(true);
@@ -50,6 +55,53 @@ const LectureSummariesAdminPage = () => {
     loadSummaries(date, page);
   }, [date, page, loadSummaries]);
 
+  /**
+   * Exports every summary for the selected day — not just the visible page.
+   * Walks all pages (the list view is paginated) so the CSV is complete.
+   */
+  const handleExport = async () => {
+    setError(null);
+    setExporting(true);
+    try {
+      const rows = [];
+      let pageNumber = 0;
+      let last = false;
+      do {
+        const response = await lectureSummaryService.getSummariesByDate(
+          date, pageNumber, EXPORT_PAGE_SIZE);
+        const data = response.data;
+        rows.push(...data.content);
+        last = data.last;
+        pageNumber += 1;
+      } while (!last);
+
+      if (rows.length === 0) {
+        setError('No summaries to export for this day.');
+        return;
+      }
+
+      downloadCsv(
+        `lecture-summaries-${date}.csv`,
+        ['Teacher', 'Subject', 'Class', 'Start Time', 'End Time', 'Summary',
+          'Submitted At', 'Status'],
+        rows.map((s) => [
+          s.teacherName,
+          s.subject,
+          s.className,
+          formatTimeOfDay(s.startTime),
+          formatTimeOfDay(s.endTime),
+          s.summaryText,
+          formatDateTime(s.submittedAt),
+          s.submittedLate ? 'Late' : 'On time',
+        ])
+      );
+    } catch (err) {
+      setError(err?.message ?? 'Failed to export summaries.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <MainLayout>
       <Stack spacing={3}>
@@ -67,13 +119,23 @@ const LectureSummariesAdminPage = () => {
               Post-lecture summaries submitted by teachers for the selected day.
             </Typography>
           </Box>
-          <TextField
-            label="Date"
-            type="date"
-            value={date}
-            onChange={(e) => { setDate(e.target.value); setPage(0); }}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
+          <Stack direction="row" spacing={2} alignItems="center">
+            <TextField
+              label="Date"
+              type="date"
+              value={date}
+              onChange={(e) => { setDate(e.target.value); setPage(0); }}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleExport}
+              disabled={exporting || loading}
+            >
+              {exporting ? 'Exporting…' : 'Export CSV'}
+            </Button>
+          </Stack>
         </Stack>
 
         {error && (

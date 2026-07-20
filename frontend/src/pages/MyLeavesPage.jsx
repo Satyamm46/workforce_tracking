@@ -23,6 +23,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import MainLayout from '../layouts/MainLayout';
 import LeaveStatusChip from '../components/LeaveStatusChip';
 import { leaveService } from '../services/leaveService';
+import { useAuth } from '../context/AuthContext';
 
 const PAGE_SIZE = 10;
 
@@ -33,6 +34,8 @@ const INITIAL_FORM = { startDate: '', endDate: '', reason: '' };
  * request history with cancellation of pending requests.
  */
 const MyLeavesPage = () => {
+  const { user } = useAuth();
+  const isTeacher = user?.role === 'TEACHER';
   const [balance, setBalance] = useState(null);
   const [history, setHistory] = useState(null);
   const [page, setPage] = useState(0);
@@ -48,18 +51,20 @@ const MyLeavesPage = () => {
     setLoading(true);
     setError(null);
     try {
+      // Teachers don't have a leave allowance/balance — their view is just the
+      // holiday date ranges, so skip the balance fetch for them.
       const [balanceRes, historyRes] = await Promise.all([
-        leaveService.getMyBalance(),
+        isTeacher ? Promise.resolve(null) : leaveService.getMyBalance(),
         leaveService.getMyLeaves(pageNumber, PAGE_SIZE),
       ]);
-      setBalance(balanceRes.data);
+      setBalance(balanceRes?.data ?? null);
       setHistory(historyRes.data);
     } catch (err) {
       setError(err?.message ?? 'Failed to load leave data.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isTeacher]);
 
   useEffect(() => {
     loadAll(page);
@@ -107,7 +112,9 @@ const MyLeavesPage = () => {
             My Leaves
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Your balance, applications, and history.
+            {isTeacher
+              ? 'Apply for holidays and see your booked dates.'
+              : 'Your balance, applications, and history.'}
           </Typography>
         </Box>
 
@@ -244,9 +251,9 @@ const MyLeavesPage = () => {
                           <TableCell>From</TableCell>
                           <TableCell>To</TableCell>
                           <TableCell>Days</TableCell>
-                          <TableCell>Reason</TableCell>
+                          {!isTeacher && <TableCell>Reason</TableCell>}
                           <TableCell>Status</TableCell>
-                          <TableCell>Decision Note</TableCell>
+                          {!isTeacher && <TableCell>Decision Note</TableCell>}
                           <TableCell align="right">Actions</TableCell>
                         </TableRow>
                       </TableHead>
@@ -256,11 +263,11 @@ const MyLeavesPage = () => {
                             <TableCell>{leave.startDate}</TableCell>
                             <TableCell>{leave.endDate}</TableCell>
                             <TableCell>{leave.totalDays}</TableCell>
-                            <TableCell>{leave.reason}</TableCell>
+                            {!isTeacher && <TableCell>{leave.reason}</TableCell>}
                             <TableCell>
                               <LeaveStatusChip status={leave.status} />
                             </TableCell>
-                            <TableCell>{leave.decisionComment ?? '—'}</TableCell>
+                            {!isTeacher && <TableCell>{leave.decisionComment ?? '—'}</TableCell>}
                             <TableCell align="right">
                               {leave.status === 'PENDING' && (
                                 <Button

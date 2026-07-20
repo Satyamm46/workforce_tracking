@@ -17,6 +17,19 @@ import com.institute.workforce_tracking.enums.RegistrationStatus;
 public interface RegistrationService {
 
     /**
+     * Sends a one-time verification code to the given email (public,
+     * unauthenticated). Must succeed before {@link #register} will accept a
+     * request for that email.
+     *
+     * @param email the address to verify
+     * @throws com.institute.workforce_tracking.exception.DuplicateResourceException
+     *         if the email already belongs to a user or a pending request
+     * @throws com.institute.workforce_tracking.exception.BadRequestException
+     *         if the code could not be emailed
+     */
+    void sendOtp(String email);
+
+    /**
      * Submits a new registration request (public, unauthenticated).
      *
      * @param request the applicant's details

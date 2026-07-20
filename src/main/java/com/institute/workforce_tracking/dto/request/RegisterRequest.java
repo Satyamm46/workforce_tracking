@@ -14,6 +14,8 @@ import jakarta.validation.constraints.Size;
  * @param fullName      the applicant's display name
  * @param email         the email they will log in with once approved
  * @param password      the password they choose now (hashed before storage)
+ * @param phone         the applicant's contact number (required)
+ * @param otp           the 6-digit code emailed to verify the address
  * @param requestedRole the role they are asking for (never SUPER_ADMIN)
  */
 public record RegisterRequest(
@@ -31,9 +33,14 @@ public record RegisterRequest(
         @Size(min = 8, max = 72, message = "Password must be between 8 and 72 characters")
         String password,
 
-        @Pattern(regexp = "^$|^[0-9]{10,15}$",
+        @NotBlank(message = "Phone number is required")
+        @Pattern(regexp = "^[0-9]{10,15}$",
                 message = "Phone must be 10-15 digits in international format, e.g. 91XXXXXXXXXX")
         String phone,
+
+        @NotBlank(message = "Verification code is required")
+        @Pattern(regexp = "^[0-9]{6}$", message = "Verification code must be 6 digits")
+        String otp,
 
         @NotNull(message = "Requested role is required")
         Role requestedRole

@@ -37,7 +37,6 @@ const AppRoutes = () => {
       {/* Protected — guarded once; children render via <Outlet /> */}
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<HealthPage />} />
-        <Route path="/attendance" element={<MyAttendancePage />} />
         <Route path="/leaves" element={<MyLeavesPage />} />
         <Route path="/lectures" element={<MyLecturesPage />} />
         <Route path="/admin/dashboard" element={<DashboardPage />} />
@@ -55,6 +54,14 @@ const AppRoutes = () => {
         <Route path="/lecture-summaries" element={<MyLectureSummariesPage />} />
         <Route path="/admin/lecture-summaries" element={<LectureSummariesAdminPage />} />
         <Route path="/admin/deadline-extensions" element={<DeadlineExtensionsAdminPage />} />
+      </Route>
+
+      {/* Attendance and leaves are not part of a teacher's workflow — their
+          presence is tracked through lectures. Gate the routes so teachers
+          can't reach them by URL, matching the hidden nav links. */}
+      <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE']} />}>
+        <Route path="/attendance" element={<MyAttendancePage />} />
+        <Route path="/leaves" element={<MyLeavesPage />} />
       </Route>
 
       {/* Catch-all */}

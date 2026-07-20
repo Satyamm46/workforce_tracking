@@ -24,9 +24,11 @@ import com.institute.workforce_tracking.enums.Role;
 import com.institute.workforce_tracking.exception.BadRequestException;
 import com.institute.workforce_tracking.exception.ResourceNotFoundException;
 import com.institute.workforce_tracking.mapper.WorkReportMapper;
+import com.institute.workforce_tracking.entity.WorkPlan;
 import com.institute.workforce_tracking.repository.AttendanceRepository;
 import com.institute.workforce_tracking.repository.DeadlineExtensionRepository;
 import com.institute.workforce_tracking.repository.UserRepository;
+import com.institute.workforce_tracking.repository.WorkPlanRepository;
 import com.institute.workforce_tracking.repository.WorkReportRepository;
 import com.institute.workforce_tracking.service.WorkReportService;
 import com.institute.workforce_tracking.util.DateTimeUtil;
@@ -44,6 +46,7 @@ public class WorkReportServiceImpl implements WorkReportService {
     private final UserRepository userRepository;
     private final WorkReportMapper workReportMapper;
     private final DeadlineExtensionRepository deadlineExtensionRepository;
+    private final WorkPlanRepository workPlanRepository;
 
     /** Roles that must submit work reports — teachers exempt. */
     private static final List<Role> REPORTING_ROLES =
@@ -79,6 +82,17 @@ public class WorkReportServiceImpl implements WorkReportService {
         report.setReportText(request.reportText());
         report.setSubmittedAt(DateTimeUtil.now());
         report.setCheckoutTime(attendance.getLogoutTime());
+        report.setCheckInTime(attendance.getLoginTime());
+
+        // Copy the day's declared work schedule onto the report, if one exists
+        // (Super Admins are not required to file a plan).
+        workPlanRepository.findByUserAndPlanDate(user, attendance.getWorkDate())
+                .ifPresent(plan -> {
+                    report.setPlannedStartTime(plan.getPlannedStartTime());
+                    report.setPlannedEndTime(plan.getPlannedEndTime());
+                    report.setPlannedWork(plan.getWorkDescription());
+                });
+
         report.setSubmittedLate(report.getSubmittedAt()
                 .isAfter(effectiveDeadline(user, attendance)));
 

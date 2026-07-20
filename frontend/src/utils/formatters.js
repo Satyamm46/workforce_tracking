@@ -30,6 +30,26 @@ export const formatTimeOfDay = (time) => {
   return time.slice(0, 5);
 };
 
+/**
+ * Minutes between two LocalTime strings ("HH:MM" or "HH:MM:SS") on the same
+ * day. Returns 0 when either is missing or the range is non-positive.
+ *
+ * @param {string|null|undefined} start start time
+ * @param {string|null|undefined} end   end time
+ * @returns {number} whole minutes elapsed
+ */
+export const minutesBetweenTimes = (start, end) => {
+  if (!start || !end) {
+    return 0;
+  }
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  if ([sh, sm, eh, em].some(Number.isNaN)) {
+    return 0;
+  }
+  return Math.max((eh * 60 + em) - (sh * 60 + sm), 0);
+};
+
 
 /**
  * Extracts the HH:MM time from a backend LocalDateTime string,

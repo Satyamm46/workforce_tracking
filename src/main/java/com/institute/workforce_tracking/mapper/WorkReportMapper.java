@@ -16,7 +16,11 @@ public class WorkReportMapper {
                 report.getWorkDate(),
                 report.getReportText(),
                 report.getSubmittedAt(),
+                report.getCheckInTime(),
                 report.getCheckoutTime(),
+                report.getPlannedStartTime(),
+                report.getPlannedEndTime(),
+                report.getPlannedWork(),
                 report.isSubmittedLate());
     }
 }

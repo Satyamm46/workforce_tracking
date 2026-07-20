@@ -78,9 +78,11 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        // Public self-registration: only the submit action.
-                        // Reviewing/deciding stays authenticated (Super Admin).
+                        // Public self-registration: only the submit action and
+                        // the email-verification code request. Reviewing/deciding
+                        // stays authenticated (Super Admin).
                         .requestMatchers(HttpMethod.POST, "/v1/registrations").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/v1/registrations/send-otp").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex ->
                         ex.authenticationEntryPoint(authenticationEntryPoint))

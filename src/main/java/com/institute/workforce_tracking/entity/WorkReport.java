@@ -2,6 +2,7 @@ package com.institute.workforce_tracking.entity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -52,6 +53,26 @@ public class WorkReport {
     /** The attendance row's checkout time — deadline is this + 24h. */
     @Column(nullable = false)
     private LocalDateTime checkoutTime;
+
+    /**
+     * The attendance row's first check-in (login) time for the day. Captured
+     * here so a report shows the actual working window without re-joining
+     * attendance. Null if the login time was somehow absent.
+     */
+    private LocalDateTime checkInTime;
+
+    /**
+     * The work schedule the user declared for this day — planned start/end
+     * times and description, copied from their work plan at submit time.
+     * Null when no plan existed (e.g. Super Admins, who are not required to
+     * file one).
+     */
+    private LocalTime plannedStartTime;
+
+    private LocalTime plannedEndTime;
+
+    @Column(length = 1000)
+    private String plannedWork;
 
     /**
      * Whether this report arrived after its effective deadline (base 24h

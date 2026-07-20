@@ -17,7 +17,14 @@ logs/
 #  Spring Boot — local secrets & overrides
 # ==========================================================
 # Never commit machine-specific or secret-bearing overrides.
+# application.properties and application-dev.properties hold real
+# credentials (mail, VAPID, DB) and must stay out of git. Keep the
+# env-var-only application-prod.properties as the safe reference template.
+application.properties
+application-dev.properties
 application-local.properties
+src/main/resources/application.properties
+src/main/resources/application-dev.properties
 *.env
 .env
 

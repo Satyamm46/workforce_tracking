@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.institute.workforce_tracking.constants.ApiConstants;
 import com.institute.workforce_tracking.dto.request.RegisterRequest;
 import com.institute.workforce_tracking.dto.request.RegistrationDecisionRequest;
+import com.institute.workforce_tracking.dto.request.SendOtpRequest;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
 import com.institute.workforce_tracking.dto.response.RegistrationResponse;
 import com.institute.workforce_tracking.enums.RegistrationStatus;
@@ -39,6 +40,20 @@ public class RegistrationController {
 
     public RegistrationController(RegistrationService registrationService) {
         this.registrationService = registrationService;
+    }
+
+    /**
+     * Public: emails a one-time verification code to the given address. The
+     * applicant must present this code back when submitting the registration,
+     * which proves they control the inbox.
+     */
+    @PostMapping("/send-otp")
+    public ResponseEntity<ApiResponse<Void>> sendOtp(
+            @Valid @RequestBody SendOtpRequest request) {
+
+        registrationService.sendOtp(request.email());
+        return ResponseEntity.ok(ApiResponse.of(
+                "A verification code has been sent to your email.", null));
     }
 
     /** Public: submits a registration request for Super Admin approval. */

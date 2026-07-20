@@ -33,7 +33,17 @@ import MainLayout from '../layouts/MainLayout';
 import LectureStatusChip from '../components/LectureStatusChip';
 import { lectureService } from '../services/lectureService';
 import { lectureSummaryService } from '../services/lectureSummaryService';
-import { formatTimeOfDay } from '../utils/formatters';
+import { formatMinutes, formatTimeOfDay, minutesBetweenTimes } from '../utils/formatters';
+
+/**
+ * Hours a lecture counts for. Once it has actually started, count from the real
+ * start to the effective end (which already includes any extensions); otherwise
+ * fall back to the scheduled span. Only meaningful for lectures that have run.
+ */
+const countedMinutes = (lecture) => {
+  const start = lecture.actualStartTime ?? lecture.startTime;
+  return minutesBetweenTimes(start, lecture.effectiveEndTime ?? lecture.endTime);
+};
 
 const PAGE_SIZE = 10;
 
@@ -239,7 +249,7 @@ const MyLecturesPage = () => {
                     disabled={submitting} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField label="Batch (optional)" value={form.batch}
+                  <TextField label="Batch / Student Name (optional)" value={form.batch}
                     onChange={handleChange('batch')} fullWidth
                     disabled={submitting} />
                 </Grid>
@@ -288,9 +298,10 @@ const MyLecturesPage = () => {
                     <TableRow>
                       <TableCell>Date</TableCell>
                       <TableCell>Time</TableCell>
+                      <TableCell>Counted</TableCell>
                       <TableCell>Subject</TableCell>
                       <TableCell>Class</TableCell>
-                      <TableCell>Batch</TableCell>
+                      <TableCell>Batch / Student Name</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell align="right">Actions</TableCell>
                     </TableRow>
@@ -302,6 +313,11 @@ const MyLecturesPage = () => {
                         <TableCell>
                           {formatTimeOfDay(lecture.startTime)} –{' '}
                           {formatTimeOfDay(lecture.effectiveEndTime)}
+                        </TableCell>
+                        <TableCell>
+                          {(lecture.status === 'COMPLETED' || lecture.status === 'LIVE')
+                            ? formatMinutes(countedMinutes(lecture))
+                            : '—'}
                         </TableCell>
                         <TableCell>{lecture.subject}</TableCell>
                         <TableCell>{lecture.className}</TableCell>

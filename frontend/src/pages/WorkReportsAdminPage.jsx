@@ -16,11 +16,15 @@ import {
   Typography,
   Button,
 } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
 import MainLayout from '../layouts/MainLayout';
 import { workReportService } from '../services/workReportService';
-import { formatDateTime } from '../utils/formatters';
+import { formatDateTime, formatTime, formatTimeOfDay } from '../utils/formatters';
+import { downloadCsv } from '../utils/csv';
 
 const PAGE_SIZE = 20;
+/** Page size used when gathering every row of a day for CSV export. */
+const EXPORT_PAGE_SIZE = 100;
 
 /** Today's date as the YYYY-MM-DD string the date input expects. */
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -34,6 +38,7 @@ const WorkReportsAdminPage = () => {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const loadReports = useCallback(async (selectedDate, pageNumber) => {
     setLoading(true);
@@ -52,6 +57,58 @@ const WorkReportsAdminPage = () => {
     loadReports(date, page);
   }, [date, page, loadReports]);
 
+  /**
+   * Exports every report for the selected day — not just the visible page.
+   * Walks all pages (the list view is paginated) so the CSV is complete.
+   */
+  const handleExport = async () => {
+    setError(null);
+    setExporting(true);
+    try {
+      const rows = [];
+      let pageNumber = 0;
+      let last = false;
+      do {
+        const response = await workReportService.getReportsByDate(
+          date, pageNumber, EXPORT_PAGE_SIZE);
+        const data = response.data;
+        rows.push(...data.content);
+        last = data.last;
+        pageNumber += 1;
+      } while (!last);
+
+      if (rows.length === 0) {
+        setError('No reports to export for this day.');
+        return;
+      }
+
+      const schedule = (report) =>
+        report.plannedStartTime && report.plannedEndTime
+          ? `${formatTimeOfDay(report.plannedStartTime)}–${formatTimeOfDay(report.plannedEndTime)}`
+          : '—';
+
+      downloadCsv(
+        `work-reports-${date}.csv`,
+        ['Name', 'Work Date', 'Check-in Time', 'Checkout Time', 'Work Schedule',
+          'Report', 'Submitted At', 'Status'],
+        rows.map((report) => [
+          report.userFullName,
+          report.workDate,
+          formatTime(report.checkInTime),
+          formatTime(report.checkoutTime),
+          schedule(report),
+          report.reportText,
+          formatDateTime(report.submittedAt),
+          report.submittedLate ? 'Late' : 'On time',
+        ])
+      );
+    } catch (err) {
+      setError(err?.message ?? 'Failed to export reports.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <MainLayout>
       <Stack spacing={3}>
@@ -69,16 +126,26 @@ const WorkReportsAdminPage = () => {
               End-of-day reports submitted by staff for the selected day.
             </Typography>
           </Box>
-          <TextField
-            label="Date"
-            type="date"
-            value={date}
-            onChange={(e) => {
-              setDate(e.target.value);
-              setPage(0);
-            }}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
+          <Stack direction="row" spacing={2} alignItems="center">
+            <TextField
+              label="Date"
+              type="date"
+              value={date}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setPage(0);
+              }}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleExport}
+              disabled={exporting || loading}
+            >
+              {exporting ? 'Exporting…' : 'Export CSV'}
+            </Button>
+          </Stack>
         </Stack>
 
         {error && (

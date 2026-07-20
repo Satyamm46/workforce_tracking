@@ -9,7 +9,12 @@ import { API_PATHS } from '../constants/apiPaths';
  * resolves to { data, message, success }.
  */
 
-/** Submits a public registration request. */
+/** Requests a one-time verification code to the given email. */
+export const sendOtp = (email) => {
+  return apiClient.post(`${API_PATHS.REGISTRATIONS}/send-otp`, { email });
+};
+
+/** Submits a public registration request (requires a verified OTP). */
 export const register = (payload) => {
   return apiClient.post(API_PATHS.REGISTRATIONS, payload);
 };
@@ -36,6 +41,7 @@ export const reject = (id, payload = {}) => {
 
 export const registrationService = {
   register,
+  sendOtp,
   getRequests,
   getPendingCount,
   approve,

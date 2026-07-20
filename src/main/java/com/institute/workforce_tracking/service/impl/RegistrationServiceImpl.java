@@ -24,6 +24,7 @@ import com.institute.workforce_tracking.exception.ResourceNotFoundException;
 import com.institute.workforce_tracking.mapper.RegistrationMapper;
 import com.institute.workforce_tracking.repository.RegistrationRequestRepository;
 import com.institute.workforce_tracking.repository.UserRepository;
+import com.institute.workforce_tracking.service.EmailVerificationService;
 import com.institute.workforce_tracking.service.RegistrationService;
 import com.institute.workforce_tracking.util.PageUtils;
 
@@ -44,17 +45,25 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final RegistrationMapper registrationMapper;
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher eventPublisher;
+    private final EmailVerificationService emailVerificationService;
 
     public RegistrationServiceImpl(RegistrationRequestRepository registrationRepository,
                                    UserRepository userRepository,
                                    RegistrationMapper registrationMapper,
                                    PasswordEncoder passwordEncoder,
-                                   ApplicationEventPublisher eventPublisher) {
+                                   ApplicationEventPublisher eventPublisher,
+                                   EmailVerificationService emailVerificationService) {
         this.registrationRepository = registrationRepository;
         this.userRepository = userRepository;
         this.registrationMapper = registrationMapper;
         this.passwordEncoder = passwordEncoder;
         this.eventPublisher = eventPublisher;
+        this.emailVerificationService = emailVerificationService;
+    }
+
+    @Override
+    public void sendOtp(String email) {
+        emailVerificationService.sendCode(email);
     }
 
     @Override
@@ -70,6 +79,10 @@ public class RegistrationServiceImpl implements RegistrationService {
             throw new DuplicateResourceException(
                     "A registration request for this email is already pending approval.");
         }
+
+        // Prove the applicant controls the email: the code was delivered to
+        // that inbox, so a fake or someone else's address cannot get past here.
+        emailVerificationService.verifyCode(request.email(), request.otp());
 
         RegistrationRequest registration = new RegistrationRequest();
         registration.setFullName(request.fullName());

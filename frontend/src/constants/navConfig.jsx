@@ -35,7 +35,7 @@ export const NAV_SECTIONS = [
   {
     heading: 'Me',
     links: [
-      { label: 'My Attendance', path: '/attendance', icon: AccessTimeIcon, show: (user) => !!user },
+      { label: 'My Attendance', path: '/attendance', icon: AccessTimeIcon, show: (user) => ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'].includes(user?.role) },
       { label: 'My Schedule', path: '/schedule', icon: EventNoteIcon, show: (user) => ['ADMIN', 'EMPLOYEE'].includes(user?.role) },
       { label: 'My Leaves', path: '/leaves', icon: BeachAccessIcon, show: (user) => !!user },
       { label: 'My Lectures', path: '/lectures', icon: SchoolIcon, show: (user) => user?.role === 'TEACHER' },
