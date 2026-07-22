@@ -57,4 +57,12 @@ public class WorkPlan extends BaseEntity {
     @Column(nullable = false)
     @ColumnDefault("false")
     private boolean submittedLate = false;
+
+    /**
+     * Whether the "your work day is about to start" reminder has been sent for
+     * this plan. Prevents the per-minute sweep from re-firing it every tick.
+     */
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean startReminderSent = false;
 }

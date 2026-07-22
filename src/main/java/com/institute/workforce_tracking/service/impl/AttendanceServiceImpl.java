@@ -3,10 +3,12 @@ package com.institute.workforce_tracking.service.impl;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,15 +22,20 @@ import com.institute.workforce_tracking.dto.response.PagedResponse;
 import com.institute.workforce_tracking.entity.Attendance;
 import com.institute.workforce_tracking.entity.User;
 import com.institute.workforce_tracking.entity.WorkBreak;
+import com.institute.workforce_tracking.entity.WorkPlan;
 import com.institute.workforce_tracking.enums.AttendanceStatus;
 import com.institute.workforce_tracking.event.AttendanceAutoActionEvent;
 import com.institute.workforce_tracking.event.LateArrivalEvent;
+import com.institute.workforce_tracking.event.OvertimeCheckedOutEvent;
+import com.institute.workforce_tracking.event.OvertimeReminderEvent;
+import com.institute.workforce_tracking.event.WorkStartReminderEvent;
 import com.institute.workforce_tracking.exception.BadRequestException;
 import com.institute.workforce_tracking.exception.ResourceNotFoundException;
 import com.institute.workforce_tracking.mapper.AttendanceMapper;
 import com.institute.workforce_tracking.repository.AttendanceRepository;
 import com.institute.workforce_tracking.repository.UserRepository;
 import com.institute.workforce_tracking.repository.WorkBreakRepository;
+import com.institute.workforce_tracking.repository.WorkPlanRepository;
 import com.institute.workforce_tracking.service.AttendanceService;
 import com.institute.workforce_tracking.service.PresenceService;
 import com.institute.workforce_tracking.service.WorkPlanService;
@@ -49,28 +56,43 @@ public class AttendanceServiceImpl implements AttendanceService {
     /** Minutes past the planned start before a check-in counts as late. */
     private static final int LATE_GRACE_MINUTES = 15;
 
+    /** Fire the work-start reminder this many minutes before the planned start. */
+    private static final int START_REMINDER_LEAD_MINUTES = 5;
+
+    /** Warn the employee this many minutes before their overtime window closes. */
+    private static final int OVERTIME_WARN_LEAD_MINUTES = 5;
+
     private final AttendanceRepository attendanceRepository;
     private final WorkBreakRepository workBreakRepository;
     private final UserRepository userRepository;
+    private final WorkPlanRepository workPlanRepository;
     private final AttendanceMapper attendanceMapper;
     private final PresenceService presenceService;
     private final WorkPlanService workPlanService;
     private final ApplicationEventPublisher eventPublisher;
 
+    /** Length of each overtime window, in minutes (configurable). */
+    private final long overtimeWindowMinutes;
+
     public AttendanceServiceImpl(AttendanceRepository attendanceRepository,
                                  WorkBreakRepository workBreakRepository,
                                  UserRepository userRepository,
+                                 WorkPlanRepository workPlanRepository,
                                  AttendanceMapper attendanceMapper,
                                  PresenceService presenceService,
                                  WorkPlanService workPlanService,
-                                 ApplicationEventPublisher eventPublisher) {
+                                 ApplicationEventPublisher eventPublisher,
+                                 @Value("${app.attendance.overtime-window-minutes:30}")
+                                 long overtimeWindowMinutes) {
         this.attendanceRepository = attendanceRepository;
         this.workBreakRepository = workBreakRepository;
         this.userRepository = userRepository;
+        this.workPlanRepository = workPlanRepository;
         this.attendanceMapper = attendanceMapper;
         this.presenceService = presenceService;
         this.workPlanService = workPlanService;
         this.eventPublisher = eventPublisher;
+        this.overtimeWindowMinutes = overtimeWindowMinutes;
     }
 
     @Override
@@ -124,6 +146,9 @@ public class AttendanceServiceImpl implements AttendanceService {
         attendance.setLogoutTime(null);
         attendance.setWorkingMinutes(null);
         attendance.setStatus(AttendanceStatus.WORKING);
+        // Reopening starts a clean slate; any old overtime window no longer applies.
+        attendance.setOvertimeDeadline(null);
+        attendance.setOvertimeReminderSent(false);
 
         log.info("Re-check-in for {} after {} minutes away", email, awayGap.getDurationMinutes());
         return attendanceMapper.toAttendanceResponse(attendanceRepository.save(attendance));
@@ -297,6 +322,121 @@ public class AttendanceServiceImpl implements AttendanceService {
                     attendance.getUser().getEmail(), maxBreakMinutes);
         }
         return checkedOut;
+    }
+
+    @Override
+    @Transactional
+    public int publishStartReminders() {
+        LocalDate today = DateTimeUtil.today();
+        LocalTime now = DateTimeUtil.now().toLocalTime();
+
+        // Plans for today whose start is within the lead window, not yet
+        // reminded, and whose owner has not already checked in.
+        List<WorkPlan> due = workPlanRepository.findByPlanDate(today).stream()
+                .filter(plan -> !plan.isStartReminderSent())
+                .filter(plan -> plan.getPlannedStartTime().isAfter(now))
+                .filter(plan -> !plan.getPlannedStartTime()
+                        .isAfter(now.plusMinutes(START_REMINDER_LEAD_MINUTES)))
+                .filter(plan -> attendanceRepository
+                        .findByUserAndWorkDate(plan.getUser(), today)
+                        .map(a -> a.getLoginTime() == null)
+                        .orElse(true))
+                .toList();
+
+        for (WorkPlan plan : due) {
+            User user = plan.getUser();
+            eventPublisher.publishEvent(new WorkStartReminderEvent(
+                    user.getId(), user.getEmail(), user.getFullName(),
+                    plan.getPlannedStartTime()));
+            plan.setStartReminderSent(true);
+        }
+        workPlanRepository.saveAll(due);
+        return due.size();
+    }
+
+    @Override
+    @Transactional
+    public int processOvertimeWindows() {
+        LocalDate today = DateTimeUtil.today();
+        LocalDateTime now = DateTimeUtil.now();
+        List<Attendance> working = attendanceRepository
+                .findByWorkDateAndStatus(today, AttendanceStatus.WORKING);
+
+        int actions = 0;
+        for (Attendance attendance : working) {
+            User user = attendance.getUser();
+
+            // Overtime is measured against the declared logout time; skip
+            // anyone without a plan (e.g. Super Admins, teachers).
+            LocalTime plannedEnd = workPlanRepository
+                    .findByUserAndPlanDate(user, today)
+                    .map(WorkPlan::getPlannedEndTime)
+                    .orElse(null);
+            if (plannedEnd == null) {
+                continue;
+            }
+
+            LocalDateTime plannedEndToday = today.atTime(plannedEnd);
+            if (now.isBefore(plannedEndToday)) {
+                continue; // not into overtime yet
+            }
+
+            // First time past the planned end: open a fresh window from now.
+            if (attendance.getOvertimeDeadline() == null) {
+                attendance.setOvertimeDeadline(now.plusMinutes(overtimeWindowMinutes));
+                attendance.setOvertimeReminderSent(false);
+                attendanceRepository.save(attendance);
+            }
+
+            LocalDateTime deadline = attendance.getOvertimeDeadline();
+
+            if (!now.isBefore(deadline)) {
+                // Window closed with no extension → auto-checkout.
+                closeOpenBreak(attendance, now);
+                long workedMinutes = Duration.between(attendance.getLoginTime(), now).toMinutes()
+                        - attendance.getTotalBreakMinutes();
+                attendance.setLogoutTime(now);
+                attendance.setWorkingMinutes((int) Math.max(workedMinutes, 0));
+                attendance.setStatus(AttendanceStatus.CHECKED_OUT);
+                attendance.setOvertimeDeadline(null);
+                attendanceRepository.save(attendance);
+
+                eventPublisher.publishEvent(new OvertimeCheckedOutEvent(user.getId(), user.getEmail()));
+                actions++;
+                log.info("Overtime auto-checkout for {} (window closed unextended)", user.getEmail());
+            } else if (!attendance.isOvertimeReminderSent()
+                    && !now.isBefore(deadline.minusMinutes(OVERTIME_WARN_LEAD_MINUTES))) {
+                // Within the warning lead → remind once for this window.
+                eventPublisher.publishEvent(new OvertimeReminderEvent(
+                        user.getId(), user.getEmail(), user.getFullName(), deadline));
+                attendance.setOvertimeReminderSent(true);
+                attendanceRepository.save(attendance);
+                actions++;
+                log.info("Overtime reminder for {} (window closes {})", user.getEmail(), deadline);
+            }
+        }
+        return actions;
+    }
+
+    @Override
+    @Transactional
+    public AttendanceResponse extendOvertime(String email) {
+        Attendance attendance = getTodayAttendance(email);
+
+        if (attendance.getStatus() != AttendanceStatus.WORKING
+                || attendance.getOvertimeDeadline() == null) {
+            throw new BadRequestException("You are not currently in an overtime window.");
+        }
+
+        // Extend from whichever is later — the current deadline or now — so a
+        // just-missed window still yields a full fresh block.
+        LocalDateTime base = DateTimeUtil.now().isAfter(attendance.getOvertimeDeadline())
+                ? DateTimeUtil.now() : attendance.getOvertimeDeadline();
+        attendance.setOvertimeDeadline(base.plusMinutes(overtimeWindowMinutes));
+        attendance.setOvertimeReminderSent(false);
+
+        log.info("Overtime extended for {} until {}", email, attendance.getOvertimeDeadline());
+        return attendanceMapper.toAttendanceResponse(attendanceRepository.save(attendance));
     }
 
     /**

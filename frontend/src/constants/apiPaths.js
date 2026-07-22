@@ -25,6 +25,7 @@ export const API_PATHS = Object.freeze({
   ATTENDANCE_ME_TODAY: '/v1/attendance/me/today',
   BREAK_START: '/v1/attendance/break/start',
   BREAK_END: '/v1/attendance/break/end',
+  ATTENDANCE_OVERTIME_EXTEND: '/v1/attendance/overtime/extend',
 
   /** Leave endpoints. */
   LEAVES: '/v1/leaves',

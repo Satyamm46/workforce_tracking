@@ -29,6 +29,10 @@ public interface LectureSummaryService {
     /** Manager view: all summaries for lectures on one day. */
     PagedResponse<LectureSummaryResponse> getSummariesByDate(LocalDate date, int page, int size);
 
+    /** Manager view: all summaries for lectures within [from, to] — backs the monthly export. */
+    PagedResponse<LectureSummaryResponse> getSummariesByDateRange(
+            LocalDate from, LocalDate to, int page, int size);
+
     /**
      * Scheduler-invoked sweep: cancels completed lectures whose actual end
      * was ≥24h ago without a submitted summary (teachers only).

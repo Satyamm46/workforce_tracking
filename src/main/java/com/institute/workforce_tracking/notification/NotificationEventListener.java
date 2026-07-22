@@ -16,7 +16,10 @@ import com.institute.workforce_tracking.event.LeaveDecidedEvent;
 import com.institute.workforce_tracking.event.LectureEndingSoonEvent;
 import com.institute.workforce_tracking.event.LectureMissedEvent;
 import com.institute.workforce_tracking.event.LectureStartingSoonEvent;
+import com.institute.workforce_tracking.event.OvertimeCheckedOutEvent;
+import com.institute.workforce_tracking.event.OvertimeReminderEvent;
 import com.institute.workforce_tracking.event.RegistrationSubmittedEvent;
+import com.institute.workforce_tracking.event.WorkStartReminderEvent;
 import com.institute.workforce_tracking.repository.UserRepository;
 import com.institute.workforce_tracking.service.EmailService;
 import com.institute.workforce_tracking.service.NotificationService;
@@ -79,15 +82,17 @@ public class NotificationEventListener {
     @TransactionalEventListener
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onLectureStartingSoon(LectureStartingSoonEvent event) {
+        String message = "Your " + event.subject() + " lecture for " + event.className()
+                + " starts at " + event.scheduledStart() + ". Press Start Class when you begin.";
         try {
             notificationService.notifyUser(
-                    event.teacherId(), event.teacherEmail(), NotificationType.LECTURE_STARTING,
-                    "Your " + event.subject() + " lecture for " + event.className()
-                            + " starts at " + event.scheduledStart()
-                            + ". Press Start Class when you begin.");
+                    event.teacherId(), event.teacherEmail(),
+                    NotificationType.LECTURE_STARTING, message);
         } catch (Exception ex) {
             log.error("Failed to create lecture-starting notification", ex);
         }
+        // Also by email — a class reminder should reach the teacher off-screen.
+        emailService.send(event.teacherEmail(), "Your lecture starts soon", message);
     }
 
     @TransactionalEventListener
@@ -138,6 +143,50 @@ public class NotificationEventListener {
                             + event.plannedStart() + "). Today is counted as a half day.");
         } catch (Exception ex) {
             log.error("Failed to create late-arrival notification", ex);
+        }
+    }
+
+    /** Heads-up before the user's declared work-start time — in-app and email. */
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onWorkStartReminder(WorkStartReminderEvent event) {
+        String message = "Your work day starts at " + event.plannedStart()
+                + ". Remember to check in.";
+        try {
+            notificationService.notifyUser(
+                    event.userId(), event.email(), NotificationType.WORK_START_REMINDER, message);
+        } catch (Exception ex) {
+            log.error("Failed to create work-start reminder", ex);
+        }
+        emailService.send(event.email(), "Your work day starts soon", message);
+    }
+
+    /** Warns an employee their overtime window is closing — in-app and email. */
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onOvertimeReminder(OvertimeReminderEvent event) {
+        String message = "You are in overtime. It ends at " + event.deadline().toLocalTime()
+                + " — extend by 30 minutes or check out.";
+        try {
+            notificationService.notifyUser(
+                    event.userId(), event.email(), NotificationType.OVERTIME_REMINDER, message);
+        } catch (Exception ex) {
+            log.error("Failed to create overtime reminder", ex);
+        }
+        emailService.send(event.email(), "Your overtime is about to end", message);
+    }
+
+    /** Tells the employee they were auto-checked-out after overtime lapsed. */
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onOvertimeCheckedOut(OvertimeCheckedOutEvent event) {
+        try {
+            notificationService.notifyUser(
+                    event.userId(), event.email(), NotificationType.OVERTIME_CHECKED_OUT,
+                    "You were checked out automatically because your overtime window "
+                            + "closed without an extension.");
+        } catch (Exception ex) {
+            log.error("Failed to create overtime-checkout notification", ex);
         }
     }
 

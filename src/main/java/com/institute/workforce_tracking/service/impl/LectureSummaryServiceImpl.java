@@ -121,6 +121,17 @@ public class LectureSummaryServiceImpl implements LectureSummaryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PagedResponse<LectureSummaryResponse> getSummariesByDateRange(LocalDate start, LocalDate end,
+                                                                     int page, int size) {
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.ASC, "submittedAt"));
+        Page<LectureSummary> summaries =
+                summaryRepository.findByLectureDateBetween(start, end, pageable);
+        return PagedResponse.of(summaries, summaryMapper::toLectureSummaryResponse);
+    }
+
+    @Override
     @Transactional
     public int cancelLecturesWithMissingSummaries() {
         LocalDateTime now = DateTimeUtil.now();

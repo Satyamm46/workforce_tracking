@@ -35,5 +35,14 @@ public enum NotificationType {
     AUTO_CHECKED_OUT,
 
     /** Checked in past the grace period after the planned start — half day. */
-    LATE_ARRIVAL
+    LATE_ARRIVAL,
+
+    /** Reminder shortly before the user's declared work-start time. */
+    WORK_START_REMINDER,
+
+    /** The user's overtime window is about to close — extend or check out. */
+    OVERTIME_REMINDER,
+
+    /** The user was checked out automatically after their overtime window closed. */
+    OVERTIME_CHECKED_OUT
 }

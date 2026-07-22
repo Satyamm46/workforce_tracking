@@ -89,3 +89,30 @@ export const formatDateTime = (isoInstant) => {
     minute: '2-digit',
   });
 };
+
+/**
+ * Given a month string from a `type="month"` input ("2026-07"), returns the
+ * first and last calendar day of that month as "YYYY-MM-DD" strings, e.g.
+ * { from: "2026-07-01", to: "2026-07-31" }. Handles month length (incl. leap
+ * February) via the Date(day 0 of next month) trick. Returns null for blank
+ * or malformed input.
+ *
+ * @param {string|null|undefined} month a "YYYY-MM" value
+ * @returns {{from: string, to: string}|null}
+ */
+export const monthRange = (month) => {
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    return null;
+  }
+  const [year, mon] = month.split('-').map(Number);
+  if (mon < 1 || mon > 12) {
+    return null;
+  }
+  // Day 0 of the next month is the last day of this one — covers 28/29/30/31.
+  const lastDay = new Date(year, mon, 0).getDate();
+  const mm = String(mon).padStart(2, '0');
+  return {
+    from: `${year}-${mm}-01`,
+    to: `${year}-${mm}-${String(lastDay).padStart(2, '0')}`,
+  };
+};

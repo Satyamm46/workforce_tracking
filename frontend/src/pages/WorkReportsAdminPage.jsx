@@ -19,7 +19,7 @@ import {
 import DownloadIcon from '@mui/icons-material/Download';
 import MainLayout from '../layouts/MainLayout';
 import { workReportService } from '../services/workReportService';
-import { formatDateTime, formatTime, formatTimeOfDay } from '../utils/formatters';
+import { formatDateTime, formatTime, formatTimeOfDay, monthRange } from '../utils/formatters';
 import { downloadCsv } from '../utils/csv';
 
 const PAGE_SIZE = 20;
@@ -28,17 +28,21 @@ const EXPORT_PAGE_SIZE = 100;
 
 /** Today's date as the YYYY-MM-DD string the date input expects. */
 const todayISO = () => new Date().toISOString().slice(0, 10);
+/** Current month as the YYYY-MM string the month input expects. */
+const currentMonthISO = () => new Date().toISOString().slice(0, 7);
 
 /**
  * Manager view of all submitted work reports for a selected day.
  */
 const WorkReportsAdminPage = () => {
   const [date, setDate] = useState(todayISO());
+  const [month, setMonth] = useState(currentMonthISO());
   const [pageData, setPageData] = useState(null);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [exportingMonth, setExportingMonth] = useState(false);
 
   const loadReports = useCallback(async (selectedDate, pageNumber) => {
     setLoading(true);
@@ -56,6 +60,27 @@ const WorkReportsAdminPage = () => {
   useEffect(() => {
     loadReports(date, page);
   }, [date, page, loadReports]);
+
+  /** CSV column headers, shared by the day and month exports. */
+  const CSV_HEADERS = ['Name', 'Work Date', 'Check-in Time', 'Checkout Time',
+    'Work Schedule', 'Report', 'Submitted At', 'Status'];
+
+  /** Maps one report to a CSV row, shared by the day and month exports. */
+  const toCsvRow = (report) => {
+    const schedule = report.plannedStartTime && report.plannedEndTime
+      ? `${formatTimeOfDay(report.plannedStartTime)}–${formatTimeOfDay(report.plannedEndTime)}`
+      : '—';
+    return [
+      report.userFullName,
+      report.workDate,
+      formatTime(report.checkInTime),
+      formatTime(report.checkoutTime),
+      schedule,
+      report.reportText,
+      formatDateTime(report.submittedAt),
+      report.submittedLate ? 'Late' : 'On time',
+    ];
+  };
 
   /**
    * Exports every report for the selected day — not just the visible page.
@@ -82,30 +107,45 @@ const WorkReportsAdminPage = () => {
         return;
       }
 
-      const schedule = (report) =>
-        report.plannedStartTime && report.plannedEndTime
-          ? `${formatTimeOfDay(report.plannedStartTime)}–${formatTimeOfDay(report.plannedEndTime)}`
-          : '—';
-
-      downloadCsv(
-        `work-reports-${date}.csv`,
-        ['Name', 'Work Date', 'Check-in Time', 'Checkout Time', 'Work Schedule',
-          'Report', 'Submitted At', 'Status'],
-        rows.map((report) => [
-          report.userFullName,
-          report.workDate,
-          formatTime(report.checkInTime),
-          formatTime(report.checkoutTime),
-          schedule(report),
-          report.reportText,
-          formatDateTime(report.submittedAt),
-          report.submittedLate ? 'Late' : 'On time',
-        ])
-      );
+      downloadCsv(`work-reports-${date}.csv`, CSV_HEADERS, rows.map(toCsvRow));
     } catch (err) {
       setError(err?.message ?? 'Failed to export reports.');
     } finally {
       setExporting(false);
+    }
+  };
+
+  /**
+   * Exports every report across the selected month into one CSV — walks all
+   * pages of the date-range query so the monthly file is complete.
+   */
+  const handleExportMonth = async () => {
+    setError(null);
+    setExportingMonth(true);
+    try {
+      const { from, to } = monthRange(month);
+      const rows = [];
+      let pageNumber = 0;
+      let last = false;
+      do {
+        const response = await workReportService.getReportsByRange(
+          from, to, pageNumber, EXPORT_PAGE_SIZE);
+        const data = response.data;
+        rows.push(...data.content);
+        last = data.last;
+        pageNumber += 1;
+      } while (!last);
+
+      if (rows.length === 0) {
+        setError('No reports to export for this month.');
+        return;
+      }
+
+      downloadCsv(`work-reports-${month}.csv`, CSV_HEADERS, rows.map(toCsvRow));
+    } catch (err) {
+      setError(err?.message ?? 'Failed to export monthly reports.');
+    } finally {
+      setExportingMonth(false);
     }
   };
 
@@ -144,6 +184,21 @@ const WorkReportsAdminPage = () => {
               disabled={exporting || loading}
             >
               {exporting ? 'Exporting…' : 'Export CSV'}
+            </Button>
+            <TextField
+              label="Month"
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              onClick={handleExportMonth}
+              disabled={exportingMonth}
+            >
+              {exportingMonth ? 'Exporting…' : 'Export Month'}
             </Button>
           </Stack>
         </Stack>

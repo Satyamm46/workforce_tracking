@@ -30,9 +30,15 @@ export const getReportsByDate = (date = null, page = 0, size = 20) => {
   return apiClient.get(API_PATHS.WORK_REPORTS, { params });
 };
 
+/** Admin: all reports whose work date falls within [from, to] — backs monthly export. */
+export const getReportsByRange = (from, to, page = 0, size = 100) => {
+  return apiClient.get(API_PATHS.WORK_REPORTS, { params: { from, to, page, size } });
+};
+
 export const workReportService = {
   submitReport,
   getMyReportForDay,
   getMyReports,
   getReportsByDate,
+  getReportsByRange,
 };

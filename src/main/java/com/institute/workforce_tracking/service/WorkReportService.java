@@ -29,6 +29,10 @@ public interface WorkReportService {
     /** Manager view: all reports for one day. */
     PagedResponse<WorkReportResponse> getReportsByDate(LocalDate date, int page, int size);
 
+    /** Manager view: all reports whose work date falls within [start, end] — backs the monthly export. */
+    PagedResponse<WorkReportResponse> getReportsByDateRange(
+            LocalDate start, LocalDate end, int page, int size);
+
     /**
      * Scheduler-invoked sweep: marks users absent who checked out ≥24h ago
      * without submitting a report (only EMPLOYEE/ADMIN/SUPER_ADMIN).

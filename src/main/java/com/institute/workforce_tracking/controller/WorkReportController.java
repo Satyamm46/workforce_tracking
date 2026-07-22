@@ -84,8 +84,19 @@ public class WorkReportController {
     public ResponseEntity<ApiResponse<PagedResponse<WorkReportResponse>>> getReportsByDate(
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+
+        if (from != null && to != null) {
+            PagedResponse<WorkReportResponse> reports =
+                    workReportService.getReportsByDateRange(from, to, page, size);
+            return ResponseEntity.ok(
+                    ApiResponse.of("Reports retrieved for " + from + " to " + to, reports));
+        }
 
         LocalDate effectiveDate = (date != null) ? date : DateTimeUtil.today();
         PagedResponse<WorkReportResponse> reports =

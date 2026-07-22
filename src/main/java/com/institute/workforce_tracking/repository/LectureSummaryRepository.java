@@ -23,4 +23,10 @@ public interface LectureSummaryRepository extends JpaRepository<LectureSummary, 
 
     @Query("SELECT ls FROM LectureSummary ls JOIN ls.lecture l WHERE l.lectureDate = :date")
     Page<LectureSummary> findByLectureDate(java.time.LocalDate date, Pageable pageable);
+
+    /** All summaries whose lecture date falls within [start, end] — backs the monthly export. */
+    @Query("SELECT ls FROM LectureSummary ls JOIN ls.lecture l "
+            + "WHERE l.lectureDate BETWEEN :start AND :end")
+    Page<LectureSummary> findByLectureDateBetween(
+            java.time.LocalDate start, java.time.LocalDate end, Pageable pageable);
 }

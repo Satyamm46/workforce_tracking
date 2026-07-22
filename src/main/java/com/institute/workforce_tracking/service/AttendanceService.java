@@ -71,4 +71,29 @@ public interface AttendanceService {
      */
     int autoCheckoutOverdueBreaks(long maxBreakMinutes);
 
+    /**
+     * Sweep: publishes a reminder to each user whose declared work-start time
+     * is approaching (within the reminder window) and who has not yet checked
+     * in. Fires at most once per plan. Called by the workday scheduler.
+     *
+     * @return how many reminders were published
+     */
+    int publishStartReminders();
+
+    /**
+     * Sweep: manages overtime for WORKING employees past their declared logout
+     * time — opens a 30-minute window, warns a few minutes before it closes,
+     * and auto-checks-out anyone whose window closes without an extension.
+     * Called by the workday scheduler.
+     *
+     * @return how many overtime actions were taken (reminders + checkouts)
+     */
+    int processOvertimeWindows();
+
+    /**
+     * Extends the caller's current overtime window by another block. Valid
+     * only while WORKING and already in overtime.
+     */
+    AttendanceResponse extendOvertime(String email);
+
 }

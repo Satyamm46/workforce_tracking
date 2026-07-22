@@ -35,7 +35,8 @@ public class AttendanceMapper {
                 attendance.getStatus(),
                 attendance.isLateArrival(),
                 attendance.isHalfDay(),
-                attendance.isAbsentNoReport()
+                attendance.isAbsentNoReport(),
+                attendance.getOvertimeDeadline()
         );
     }
 
@@ -43,7 +44,7 @@ public class AttendanceMapper {
      * Final stored minutes once clocked out; otherwise a live snapshot:
      * (now − login) − breaks, floored at zero.
      */
-        private long calculateWorkingMinutes(Attendance attendance) {
+    private long calculateWorkingMinutes(Attendance attendance) {
         if (attendance.getWorkingMinutes() != null) {
             return attendance.getWorkingMinutes();
         }

@@ -60,6 +60,14 @@ public class AttendanceController {
         return ResponseEntity.ok(ApiResponse.of("Work resumed", attendance));
     }
 
+    /** Extends the caller's current overtime window by another block. */
+    @PostMapping("/overtime/extend")
+    public ResponseEntity<ApiResponse<AttendanceResponse>> extendOvertime(
+            Authentication authentication) {
+        AttendanceResponse attendance = attendanceService.extendOvertime(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.of("Overtime extended", attendance));
+    }
+
     /** Returns the caller's attendance record for today. */
     @GetMapping("/me/today")
     public ResponseEntity<ApiResponse<AttendanceResponse>> getMyTodayAttendance(

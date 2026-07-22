@@ -25,6 +25,7 @@ import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import CoffeeIcon from '@mui/icons-material/Coffee';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import MoreTimeIcon from '@mui/icons-material/MoreTime';
 import MainLayout from '../layouts/MainLayout';
 import AttendanceStatusChip from '../components/AttendanceStatusChip';
 import AttendanceFlagChips from '../components/AttendanceFlagChips';
@@ -49,6 +50,7 @@ const MyAttendancePage = () => {
   const [clockingOut, setClockingOut] = useState(false);
   const [breakBusy, setBreakBusy] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
+  const [extendingOvertime, setExtendingOvertime] = useState(false);
 
   const loadToday = useCallback(async () => {
     setTodayLoading(true);
@@ -115,6 +117,19 @@ const MyAttendancePage = () => {
     }
   };
 
+  const handleExtendOvertime = async () => {
+    setExtendingOvertime(true);
+    setError(null);
+    try {
+      const response = await attendanceService.extendOvertime();
+      setToday(response.data);
+    } catch (err) {
+      setError(err?.message ?? 'Could not extend overtime.');
+    } finally {
+      setExtendingOvertime(false);
+    }
+  };
+
   const handleBreakToggle = async () => {
     setBreakBusy(true);
     setError(null);
@@ -173,6 +188,30 @@ const MyAttendancePage = () => {
                 </Button>
               </Stack>
             ) : (
+              <Stack spacing={2}>
+              {today.overtimeDeadline && today.status !== 'CHECKED_OUT' && (
+                <Alert
+                  severity="warning"
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      startIcon={<MoreTimeIcon />}
+                      onClick={handleExtendOvertime}
+                      disabled={extendingOvertime}
+                    >
+                      {extendingOvertime ? (
+                        <CircularProgress size={18} color="inherit" />
+                      ) : (
+                        'Extend Overtime'
+                      )}
+                    </Button>
+                  }
+                >
+                  You are in overtime. It ends at {formatTime(today.overtimeDeadline)} — extend or
+                  clock out before then, or you will be checked out automatically.
+                </Alert>
+              )}
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={4}
@@ -259,6 +298,7 @@ const MyAttendancePage = () => {
                     </Button>
                   )}
                 </Stack>
+              </Stack>
               </Stack>
             )}
           </CardContent>

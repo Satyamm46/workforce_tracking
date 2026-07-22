@@ -19,24 +19,44 @@ import {
 import DownloadIcon from '@mui/icons-material/Download';
 import MainLayout from '../layouts/MainLayout';
 import { lectureSummaryService } from '../services/lectureSummaryService';
-import { formatDateTime, formatTimeOfDay } from '../utils/formatters';
+import { formatDateTime, formatTimeOfDay, monthRange } from '../utils/formatters';
 import { downloadCsv } from '../utils/csv';
 
 const PAGE_SIZE = 20;
 /** Page size used when gathering every row of a day for CSV export. */
 const EXPORT_PAGE_SIZE = 100;
 const todayISO = () => new Date().toISOString().slice(0, 10);
+/** Current month as the YYYY-MM string the month input expects. */
+const currentMonthISO = () => new Date().toISOString().slice(0, 7);
+
+/** CSV column headers, shared by the day and month exports. */
+const CSV_HEADERS = ['Teacher', 'Subject', 'Class', 'Start Time', 'End Time',
+  'Summary', 'Submitted At', 'Status'];
+
+/** Maps one summary to a CSV row in the CSV_HEADERS order. */
+const toCsvRow = (s) => [
+  s.teacherName,
+  s.subject,
+  s.className,
+  formatTimeOfDay(s.startTime),
+  formatTimeOfDay(s.endTime),
+  s.summaryText,
+  formatDateTime(s.submittedAt),
+  s.submittedLate ? 'Late' : 'On time',
+];
 
 /**
  * Manager view of all post-lecture summaries for a selected day.
  */
 const LectureSummariesAdminPage = () => {
   const [date, setDate] = useState(todayISO());
+  const [month, setMonth] = useState(currentMonthISO());
   const [pageData, setPageData] = useState(null);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [exportingMonth, setExportingMonth] = useState(false);
 
   const loadSummaries = useCallback(async (selectedDate, pageNumber) => {
     setLoading(true);
@@ -80,25 +100,45 @@ const LectureSummariesAdminPage = () => {
         return;
       }
 
-      downloadCsv(
-        `lecture-summaries-${date}.csv`,
-        ['Teacher', 'Subject', 'Class', 'Start Time', 'End Time', 'Summary',
-          'Submitted At', 'Status'],
-        rows.map((s) => [
-          s.teacherName,
-          s.subject,
-          s.className,
-          formatTimeOfDay(s.startTime),
-          formatTimeOfDay(s.endTime),
-          s.summaryText,
-          formatDateTime(s.submittedAt),
-          s.submittedLate ? 'Late' : 'On time',
-        ])
-      );
+      downloadCsv(`lecture-summaries-${date}.csv`, CSV_HEADERS, rows.map(toCsvRow));
     } catch (err) {
       setError(err?.message ?? 'Failed to export summaries.');
     } finally {
       setExporting(false);
+    }
+  };
+
+  /**
+   * Exports every summary across the selected month into one CSV — walks all
+   * pages of the date-range query so the monthly file is complete.
+   */
+  const handleExportMonth = async () => {
+    setError(null);
+    setExportingMonth(true);
+    try {
+      const { from, to } = monthRange(month);
+      const rows = [];
+      let pageNumber = 0;
+      let last = false;
+      do {
+        const response = await lectureSummaryService.getSummariesByRange(
+          from, to, pageNumber, EXPORT_PAGE_SIZE);
+        const data = response.data;
+        rows.push(...data.content);
+        last = data.last;
+        pageNumber += 1;
+      } while (!last);
+
+      if (rows.length === 0) {
+        setError('No summaries to export for this month.');
+        return;
+      }
+
+      downloadCsv(`lecture-summaries-${month}.csv`, CSV_HEADERS, rows.map(toCsvRow));
+    } catch (err) {
+      setError(err?.message ?? 'Failed to export monthly summaries.');
+    } finally {
+      setExportingMonth(false);
     }
   };
 
@@ -134,6 +174,21 @@ const LectureSummariesAdminPage = () => {
               disabled={exporting || loading}
             >
               {exporting ? 'Exporting…' : 'Export CSV'}
+            </Button>
+            <TextField
+              label="Month"
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              onClick={handleExportMonth}
+              disabled={exportingMonth}
+            >
+              {exportingMonth ? 'Exporting…' : 'Export Month'}
             </Button>
           </Stack>
         </Stack>

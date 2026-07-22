@@ -49,11 +49,17 @@ export const endBreak = () => {
   return apiClient.post(API_PATHS.BREAK_END);
 };
 
+/** Extends the caller's current overtime window by another block. */
+export const extendOvertime = () => {
+  return apiClient.post(API_PATHS.ATTENDANCE_OVERTIME_EXTEND);
+};
+
 export const attendanceService = {
   checkIn,
   clockOut,
   startBreak,
   endBreak,
+  extendOvertime,
   getMyToday,
   getMyHistory,
   getByDate,

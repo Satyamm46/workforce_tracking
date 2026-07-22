@@ -24,6 +24,7 @@ import com.institute.workforce_tracking.enums.AttendanceStatus;
  * @param lateArrival       checked in past the grace period after the planned start
  * @param halfDay           the day counts as a half day (late-arrival penalty)
  * @param absentNoReport    marked absent for not submitting a work report in time
+ * @param overtimeDeadline  when the current overtime window closes; null if not in overtime
  */
 public record AttendanceResponse(
         Long id,
@@ -37,6 +38,7 @@ public record AttendanceResponse(
         AttendanceStatus status,
         boolean lateArrival,
         boolean halfDay,
-        boolean absentNoReport
+        boolean absentNoReport,
+        LocalDateTime overtimeDeadline
 ) {
 }

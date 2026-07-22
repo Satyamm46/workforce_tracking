@@ -27,9 +27,15 @@ export const getSummariesByDate = (date = null, page = 0, size = 20) => {
   return apiClient.get(API_PATHS.LECTURE_SUMMARIES, { params });
 };
 
+/** Admin: all summaries whose lecture date falls within [from, to] — backs monthly export. */
+export const getSummariesByRange = (from, to, page = 0, size = 100) => {
+  return apiClient.get(API_PATHS.LECTURE_SUMMARIES, { params: { from, to, page, size } });
+};
+
 export const lectureSummaryService = {
   submitSummary,
   getMySummaryForLecture,
   getMySummaries,
   getSummariesByDate,
+  getSummariesByRange,
 };

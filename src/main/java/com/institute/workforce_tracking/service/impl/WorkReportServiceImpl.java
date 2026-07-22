@@ -134,6 +134,16 @@ public class WorkReportServiceImpl implements WorkReportService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PagedResponse<WorkReportResponse> getReportsByDateRange(
+            LocalDate from, LocalDate to, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.ASC, "workDate", "submittedAt"));
+        Page<WorkReport> reports = workReportRepository.findByWorkDateBetween(from, to, pageable);
+        return PagedResponse.of(reports, workReportMapper::toWorkReportResponse);
+    }
+
+    @Override
     @Transactional
     public int markAbsentForMissingReports() {
         LocalDateTime now = DateTimeUtil.now();

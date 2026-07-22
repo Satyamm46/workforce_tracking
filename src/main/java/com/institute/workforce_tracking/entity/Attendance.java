@@ -103,4 +103,22 @@ public class Attendance extends BaseEntity {
     @Column(nullable = false)
     @org.hibernate.annotations.ColumnDefault("false")
     private boolean halfDay = false;
+
+    /**
+     * When the current overtime window closes. Set once the employee works
+     * past their declared logout time, and pushed forward by 30 minutes each
+     * time they extend. Null when not in overtime. If this passes while the
+     * employee is still WORKING and has not extended, the sweep clocks them
+     * out automatically.
+     */
+    private LocalDateTime overtimeDeadline;
+
+    /**
+     * Whether the "overtime about to end" reminder has been sent for the
+     * CURRENT window. Reset each time the window advances (start or extend),
+     * so every 30-minute window gets its own single reminder.
+     */
+    @Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("false")
+    private boolean overtimeReminderSent = false;
 }

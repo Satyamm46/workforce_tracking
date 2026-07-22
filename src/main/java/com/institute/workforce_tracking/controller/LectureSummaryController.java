@@ -74,14 +74,29 @@ public class LectureSummaryController {
         return ResponseEntity.ok(ApiResponse.of("Summaries retrieved", summaries));
     }
 
-    /** Admin view: all summaries for lectures on one day. */
+    /**
+     * Admin view: summaries for lectures on one day, OR across a date range
+     * when both {@code from} and {@code to} are supplied (backs the monthly
+     * export). Range takes precedence over the single {@code date}.
+     */
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<ApiResponse<PagedResponse<LectureSummaryResponse>>> getSummariesByDate(
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+
+        if (from != null && to != null) {
+            PagedResponse<LectureSummaryResponse> summaries =
+                    lectureSummaryService.getSummariesByDateRange(from, to, page, size);
+            return ResponseEntity.ok(
+                    ApiResponse.of("Summaries retrieved for " + from + " to " + to, summaries));
+        }
 
         LocalDate effectiveDate = (date != null) ? date : DateTimeUtil.today();
         PagedResponse<LectureSummaryResponse> summaries =

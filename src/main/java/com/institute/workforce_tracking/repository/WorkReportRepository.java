@@ -18,5 +18,8 @@ public interface WorkReportRepository extends JpaRepository<WorkReport, Long> {
 
     Page<WorkReport> findByWorkDate(LocalDate workDate, Pageable pageable);
 
+    /** All reports whose work date falls within [start, end] — backs the monthly export. */
+    Page<WorkReport> findByWorkDateBetween(LocalDate start, LocalDate end, Pageable pageable);
+
     boolean existsByUserAndWorkDate(User user, LocalDate workDate);
 }
