@@ -17,13 +17,13 @@ logs/
 #  Spring Boot — local secrets & overrides
 # ==========================================================
 # Never commit machine-specific or secret-bearing overrides.
-# application.properties and application-dev.properties hold real
-# credentials (mail, VAPID, DB) and must stay out of git. Keep the
-# env-var-only application-prod.properties as the safe reference template.
-application.properties
+# application.properties is the deployed base config: it holds NO real secrets
+# (every credential is ${ENV_VAR:} with an empty/dev-only default) and MUST be
+# committed so it ships in the jar. Real secrets are injected as env vars in
+# production. Only the local dev file, which may hold real credentials, stays
+# out of git.
 application-dev.properties
 application-local.properties
-src/main/resources/application.properties
 src/main/resources/application-dev.properties
 *.env
 .env
