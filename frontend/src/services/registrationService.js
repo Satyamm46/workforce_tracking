@@ -10,7 +10,7 @@ import { API_PATHS } from '../constants/apiPaths';
  */
 
 /** Requests a one-time verification code to the given email. */
-export const sendOtp = (email) => {
+export const sendOtp = ({ email }) => {
   return apiClient.post(`${API_PATHS.REGISTRATIONS}/send-otp`, { email });
 };
 
