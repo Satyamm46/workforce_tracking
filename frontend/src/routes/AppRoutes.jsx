@@ -1,27 +1,46 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { Box, CircularProgress } from '@mui/material';
 import ProtectedRoute from './ProtectedRoute';
 import LoginPage from '../pages/LoginPage';
-import RegisterPage from '../pages/RegisterPage';
-import HealthPage from '../pages/HealthPage';
-import MyAttendancePage from '../pages/MyAttendancePage';
-import AttendanceAdminPage from '../pages/AttendanceAdminPage';
-import MyLeavesPage from '../pages/MyLeavesPage';
-import LeaveAdminPage from '../pages/LeaveAdminPage';
-import MyLecturesPage from '../pages/MyLecturesPage';
-import LectureAdminPage from '../pages/LectureAdminPage';
-import DashboardPage from '../pages/DashboardPage';
-import ReportsPage from '../pages/ReportsPage';
-import UsersPage from '../pages/UsersPage';
-import CreateUserPage from '../pages/CreateUserPage';
-import RegistrationAdminPage from '../pages/RegistrationAdminPage';
-import MySchedulePage from '../pages/MySchedulePage';
-import ScheduleAdminPage from '../pages/ScheduleAdminPage';
-import MyWorkReportsPage from '../pages/MyWorkReportsPage';
-import WorkReportsAdminPage from '../pages/WorkReportsAdminPage';
-import MyLectureSummariesPage from '../pages/MyLectureSummariesPage';
-import LectureSummariesAdminPage from '../pages/LectureSummariesAdminPage';
-import DeadlineExtensionsAdminPage from '../pages/DeadlineExtensionsAdminPage';
-import NotFoundPage from '../pages/NotFoundPage';
+
+/*
+ * Every page below is code-split: Vite emits one chunk per page and the browser
+ * downloads a page only when its route is first visited. This keeps the initial
+ * download to the shell plus the login screen instead of all 22 pages at once.
+ *
+ * LoginPage is the one deliberate exception — it is the landing route for every
+ * signed-out visitor, so splitting it would only add a round trip and a spinner
+ * flash on the most-requested page.
+ */
+const RegisterPage = lazy(() => import('../pages/RegisterPage'));
+const HealthPage = lazy(() => import('../pages/HealthPage'));
+const MyAttendancePage = lazy(() => import('../pages/MyAttendancePage'));
+const AttendanceAdminPage = lazy(() => import('../pages/AttendanceAdminPage'));
+const MyLeavesPage = lazy(() => import('../pages/MyLeavesPage'));
+const LeaveAdminPage = lazy(() => import('../pages/LeaveAdminPage'));
+const MyLecturesPage = lazy(() => import('../pages/MyLecturesPage'));
+const LectureAdminPage = lazy(() => import('../pages/LectureAdminPage'));
+const DashboardPage = lazy(() => import('../pages/DashboardPage'));
+const ReportsPage = lazy(() => import('../pages/ReportsPage'));
+const UsersPage = lazy(() => import('../pages/UsersPage'));
+const CreateUserPage = lazy(() => import('../pages/CreateUserPage'));
+const RegistrationAdminPage = lazy(() => import('../pages/RegistrationAdminPage'));
+const MySchedulePage = lazy(() => import('../pages/MySchedulePage'));
+const ScheduleAdminPage = lazy(() => import('../pages/ScheduleAdminPage'));
+const MyWorkReportsPage = lazy(() => import('../pages/MyWorkReportsPage'));
+const WorkReportsAdminPage = lazy(() => import('../pages/WorkReportsAdminPage'));
+const MyLectureSummariesPage = lazy(() => import('../pages/MyLectureSummariesPage'));
+const LectureSummariesAdminPage = lazy(() => import('../pages/LectureSummariesAdminPage'));
+const DeadlineExtensionsAdminPage = lazy(() => import('../pages/DeadlineExtensionsAdminPage'));
+const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
+
+/** Shown for the moment a page chunk is in flight. */
+const PageFallback = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+    <CircularProgress />
+  </Box>
+);
 
 /**
  * Central route table — the app's complete navigational map. Every NAV_LINKS
@@ -29,44 +48,47 @@ import NotFoundPage from '../pages/NotFoundPage';
  */
 const AppRoutes = () => {
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+    <Suspense fallback={<PageFallback />}>
+      <Routes>
+        {/* Public */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-      {/* Protected — guarded once; children render via <Outlet /> */}
-      <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<HealthPage />} />
-        <Route path="/leaves" element={<MyLeavesPage />} />
-        <Route path="/lectures" element={<MyLecturesPage />} />
-        <Route path="/admin/dashboard" element={<DashboardPage />} />
-        <Route path="/admin/attendance" element={<AttendanceAdminPage />} />
-        <Route path="/admin/leaves" element={<LeaveAdminPage />} />
-        <Route path="/admin/lectures" element={<LectureAdminPage />} />
-        <Route path="/admin/reports" element={<ReportsPage />} />
-        <Route path="/users" element={<UsersPage />} />
-        <Route path="/users/new" element={<CreateUserPage />} />
-        <Route path="/admin/registrations" element={<RegistrationAdminPage />} />
-        <Route path="/schedule" element={<MySchedulePage />} />
-        <Route path="/admin/schedules" element={<ScheduleAdminPage />} />
-        <Route path="/work-reports" element={<MyWorkReportsPage />} />
-        <Route path="/admin/work-reports" element={<WorkReportsAdminPage />} />
-        <Route path="/lecture-summaries" element={<MyLectureSummariesPage />} />
-        <Route path="/admin/lecture-summaries" element={<LectureSummariesAdminPage />} />
-        <Route path="/admin/deadline-extensions" element={<DeadlineExtensionsAdminPage />} />
-      </Route>
+        {/* Protected — guarded once; children render via <Outlet /> */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<HealthPage />} />
+          <Route path="/lectures" element={<MyLecturesPage />} />
+          <Route path="/admin/dashboard" element={<DashboardPage />} />
+          <Route path="/admin/attendance" element={<AttendanceAdminPage />} />
+          <Route path="/admin/leaves" element={<LeaveAdminPage />} />
+          <Route path="/admin/lectures" element={<LectureAdminPage />} />
+          <Route path="/admin/reports" element={<ReportsPage />} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/users/new" element={<CreateUserPage />} />
+          <Route path="/admin/registrations" element={<RegistrationAdminPage />} />
+          <Route path="/schedule" element={<MySchedulePage />} />
+          <Route path="/admin/schedules" element={<ScheduleAdminPage />} />
+          <Route path="/work-reports" element={<MyWorkReportsPage />} />
+          <Route path="/admin/work-reports" element={<WorkReportsAdminPage />} />
+          <Route path="/lecture-summaries" element={<MyLectureSummariesPage />} />
+          <Route path="/admin/lecture-summaries" element={<LectureSummariesAdminPage />} />
+          <Route path="/admin/deadline-extensions" element={<DeadlineExtensionsAdminPage />} />
+        </Route>
 
-      {/* Attendance and leaves are not part of a teacher's workflow — their
-          presence is tracked through lectures. Gate the routes so teachers
-          can't reach them by URL, matching the hidden nav links. */}
-      <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE']} />}>
-        <Route path="/attendance" element={<MyAttendancePage />} />
-        <Route path="/leaves" element={<MyLeavesPage />} />
-      </Route>
+        {/* Attendance and leaves are not part of a teacher's workflow — their
+            presence is tracked through lectures. Gate the routes so teachers
+            can't reach them by URL, matching the hidden nav links. These must
+            not be duplicated in the block above: identical paths tie-break by
+            declaration order, so an ungated copy would shadow this guard. */}
+        <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE']} />}>
+          <Route path="/attendance" element={<MyAttendancePage />} />
+          <Route path="/leaves" element={<MyLeavesPage />} />
+        </Route>
 
-      {/* Catch-all */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+        {/* Catch-all */}
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Suspense>
   );
 };
 

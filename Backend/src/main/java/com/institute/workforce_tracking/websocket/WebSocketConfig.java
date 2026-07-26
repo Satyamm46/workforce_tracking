@@ -36,15 +36,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // In-memory broker delivering to subscription destinations.
-        registry.enableSimpleBroker("/queue");
+        // In-memory broker delivering to subscription destinations. Each call
+        // replaces the previous registration, so this must be declared once.
+        registry.enableSimpleBroker("/queue", "/topic");
         // convertAndSendToUser(email, "/queue/x") → /user/{email}/queue/x
         registry.setUserDestinationPrefix("/user");
         // Prefix for client→server messages (unused yet; standard convention).
         registry.setApplicationDestinationPrefixes("/app");
-        
-        registry.enableSimpleBroker("/queue", "/topic");
-
     }
 
     @Override

@@ -50,6 +50,15 @@ public class DataSeeder implements CommandLineRunner {
             return;
         }
 
+        // No password configured (the default is empty so no credential is
+        // committed to git). Seeding here would create a Super Admin with a
+        // blank password — worse than not seeding at all, so refuse loudly.
+        if (adminPassword == null || adminPassword.isBlank()) {
+            log.error("Cannot seed Super Admin: app.seed.super-admin.password is not set. "
+                    + "Set the SEED_ADMIN_PASSWORD environment variable and restart.");
+            return;
+        }
+
         User superAdmin = new User();
         superAdmin.setFullName(adminFullName);
         superAdmin.setEmail(adminEmail);
