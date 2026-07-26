@@ -1,6 +1,8 @@
 package com.institute.workforce_tracking.service.impl;
 
 import java.time.LocalDate;
+import java.util.EnumMap;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,10 +41,19 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDate today = DateTimeUtil.today();
 
         long total = userRepository.countByEnabledTrue();
-        long working = attendanceRepository.countByWorkDateAndStatus(today, AttendanceStatus.WORKING);
-        long onBreak = attendanceRepository.countByWorkDateAndStatus(today, AttendanceStatus.ON_BREAK);
-        long checkedOut = attendanceRepository.countByWorkDateAndStatus(today, AttendanceStatus.CHECKED_OUT);
-        long onLeave = attendanceRepository.countByWorkDateAndStatus(today, AttendanceStatus.ON_LEAVE);
+
+        // One grouped query instead of four separate counts over the same rows.
+        // This runs every 15 seconds for the life of the app, so the saving is
+        // three round trips and three table scans per tick.
+        Map<AttendanceStatus, Long> counts = new EnumMap<>(AttendanceStatus.class);
+        for (Object[] row : attendanceRepository.countByWorkDateGroupedByStatus(today)) {
+            counts.put((AttendanceStatus) row[0], (Long) row[1]);
+        }
+
+        long working = counts.getOrDefault(AttendanceStatus.WORKING, 0L);
+        long onBreak = counts.getOrDefault(AttendanceStatus.ON_BREAK, 0L);
+        long checkedOut = counts.getOrDefault(AttendanceStatus.CHECKED_OUT, 0L);
+        long onLeave = counts.getOrDefault(AttendanceStatus.ON_LEAVE, 0L);
         long liveLectures = lectureRepository.countByStatus(LectureStatus.LIVE);
 
         long present = working + onBreak + checkedOut + onLeave;

@@ -63,8 +63,21 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @EntityGraph(attributePaths = "user")
     Page<Attendance> findByWorkDate(LocalDate workDate, Pageable pageable);
 
-    /** How many attendance records exist for a day in a given status. */
-    long countByWorkDateAndStatus(LocalDate workDate, AttendanceStatus status);
+    /**
+     * Counts a day's attendance records grouped by status, in one query.
+     *
+     * <p>The dashboard needs four of these counts and re-reads them every 15
+     * seconds for as long as the app runs; issuing them separately scans the
+     * same rows four times. Each element is {@code [status, count]}; statuses
+     * with no rows are absent rather than zero.</p>
+     */
+    @Query("""
+            SELECT a.status, COUNT(a)
+            FROM Attendance a
+            WHERE a.workDate = :workDate
+            GROUP BY a.status
+            """)
+    java.util.List<Object[]> countByWorkDateGroupedByStatus(@Param("workDate") LocalDate workDate);
 
     /** All attendance rows with a specific status, most recent first (for finding last checkout). */
     Page<Attendance> findByUserAndStatus(User user, AttendanceStatus status, Pageable pageable);
