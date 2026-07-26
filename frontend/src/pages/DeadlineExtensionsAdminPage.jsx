@@ -213,7 +213,7 @@ const DeadlineExtensionsAdminPage = () => {
                     required
                     fullWidth
                     disabled={submitting}
-                    inputProps={{ min: 1, max: 48 }}
+                    slotProps={{ htmlInput: { min: 1, max: 48 } }}
                     helperText="1–48 hours added to the normal deadline"
                   />
                 </Stack>
@@ -224,7 +224,7 @@ const DeadlineExtensionsAdminPage = () => {
                   onChange={handleChange('reason')}
                   fullWidth
                   disabled={submitting}
-                  inputProps={{ maxLength: 500 }}
+                  slotProps={{ htmlInput: { maxLength: 500 } }}
                 />
 
                 <Box>

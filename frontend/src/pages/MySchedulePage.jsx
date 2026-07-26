@@ -200,7 +200,7 @@ const MySchedulePage = () => {
                   fullWidth
                   multiline
                   minRows={3}
-                  inputProps={{ maxLength: 1000 }}
+                  slotProps={{ htmlInput: { maxLength: 1000 } }}
                   helperText={`${form.workDescription.length}/1000`}
                   disabled={submitting}
                 />

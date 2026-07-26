@@ -114,7 +114,7 @@ const MyWorkReportsPage = () => {
                   fullWidth
                   multiline
                   minRows={4}
-                  inputProps={{ maxLength: 2000 }}
+                  slotProps={{ htmlInput: { maxLength: 2000 } }}
                   helperText={`${reportText.length}/2000 — Submit within 24h of checkout to avoid absence.`}
                   disabled={submitting}
                 />

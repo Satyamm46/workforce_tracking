@@ -246,7 +246,7 @@ const RegisterPage = () => {
                       required
                       autoFocus
                       fullWidth
-                      inputProps={{ inputMode: 'numeric', maxLength: 6 }}
+                      slotProps={{ htmlInput: { inputMode: 'numeric', maxLength: 6 } }}
                       helperText="Enter the 6-digit code sent to your email"
                       disabled={busy}
                     />

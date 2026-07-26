@@ -404,7 +404,7 @@ const MyLecturesPage = () => {
             type="number"
             value={extendMinutes}
             onChange={(e) => setExtendMinutes(e.target.value)}
-            inputProps={{ min: 1, max: 30 }}
+            slotProps={{ htmlInput: { min: 1, max: 30 } }}
             helperText={`Currently extended by ${extendTarget?.extendedMinutes ?? 0} of 30 minutes`}
             fullWidth
             sx={{ mt: 1 }}
@@ -483,7 +483,7 @@ const MyLecturesPage = () => {
             value={summaryText}
             onChange={(e) => setSummaryText(e.target.value)}
             required fullWidth multiline minRows={4}
-            inputProps={{ maxLength: 2000 }}
+            slotProps={{ htmlInput: { maxLength: 2000 } }}
             helperText={`${summaryText.length}/2000 — Submit within 24h of the lecture ending.`}
             disabled={submittingSummary}
             sx={{ mt: 1 }}
