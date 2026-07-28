@@ -51,7 +51,19 @@ public class WebConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         // Which browser origins may call this API (e.g. the React dev server).
-        config.setAllowedOrigins(allowedOrigins);
+        //
+        // Patterns rather than exact origins: hosts like Vercel mint a fresh
+        // deployment URL on every push, so an exact list would need editing
+        // after each deploy. A scoped pattern such as
+        //   https://myapp-*-myteam.vercel.app
+        // matches those without opening the API to every app on that host.
+        // Plain origins with no '*' still match exactly, so existing values
+        // (e.g. http://localhost:5173) behave as before.
+        //
+        // This also has to be setAllowedOriginPatterns, not setAllowedOrigins:
+        // a wildcard combined with setAllowCredentials(true) below is rejected
+        // outright by the spec, and patterns are the supported way around it.
+        config.setAllowedOriginPatterns(allowedOrigins);
 
         // HTTP methods the frontend is permitted to use.
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

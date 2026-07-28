@@ -1,5 +1,7 @@
 package com.institute.workforce_tracking.websocket;
 
+import java.util.Arrays;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -25,13 +27,26 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public WebSocketConfig(WebSocketAuthChannelInterceptor authChannelInterceptor,
                            @Value("${app.cors.allowed-origins}") String allowedOrigins) {
         this.authChannelInterceptor = authChannelInterceptor;
-        this.allowedOrigins = allowedOrigins.split(",");
+        // Trim and drop blanks, matching WebConfig's parsing of the same
+        // property. Without trimming, "a, b" yields " b" and that origin
+        // silently never matches.
+        this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toArray(String[]::new);
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // The HTTP upgrade endpoint the client connects to (full path: /api/ws).
-        registry.addEndpoint("/ws").setAllowedOrigins(allowedOrigins);
+        //
+        // Patterns, not exact origins: app.cors.allowed-origins may contain a
+        // wildcard entry for hosts that mint a new deployment URL per push
+        // (e.g. Vercel). setAllowedOrigins compares literally, so a '*' entry
+        // would never match and the handshake would fail with 403 while plain
+        // REST calls succeeded. Must stay in step with WebConfig, which reads
+        // the same property.
+        registry.addEndpoint("/ws").setAllowedOriginPatterns(allowedOrigins);
     }
 
     @Override

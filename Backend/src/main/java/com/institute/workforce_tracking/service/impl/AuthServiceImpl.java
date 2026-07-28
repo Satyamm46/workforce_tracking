@@ -21,6 +21,8 @@ import com.institute.workforce_tracking.security.JwtUtil;
 import com.institute.workforce_tracking.security.SecurityUser;
 import com.institute.workforce_tracking.service.AuthService;
 
+import com.institute.workforce_tracking.util.EmailRateLimiter;
+
 @Service
 public class AuthServiceImpl implements AuthService {
 
@@ -29,21 +31,25 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final EmailRateLimiter rateLimiter;
 
     public AuthServiceImpl(AuthenticationManager authenticationManager,
                            JwtUtil jwtUtil,
                            UserRepository userRepository,
                            UserMapper userMapper,
-                           ApplicationEventPublisher eventPublisher) {
+                           ApplicationEventPublisher eventPublisher,
+                           EmailRateLimiter rateLimiter) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.eventPublisher = eventPublisher;
+        this.rateLimiter = rateLimiter;
     }
 
     @Override
     public AuthResponse login(LoginRequest request) {
+        rateLimiter.check(request.email());
         Authentication authentication;
         try {
             authentication = authenticationManager.authenticate(

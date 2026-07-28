@@ -28,6 +28,8 @@ import com.institute.workforce_tracking.service.EmailVerificationService;
 import com.institute.workforce_tracking.service.RegistrationService;
 import com.institute.workforce_tracking.util.PageUtils;
 
+import com.institute.workforce_tracking.util.EmailRateLimiter;
+
 /**
  * Default implementation of {@link RegistrationService}.
  *
@@ -46,23 +48,27 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher eventPublisher;
     private final EmailVerificationService emailVerificationService;
+    private final EmailRateLimiter rateLimiter;
 
     public RegistrationServiceImpl(RegistrationRequestRepository registrationRepository,
                                    UserRepository userRepository,
                                    RegistrationMapper registrationMapper,
                                    PasswordEncoder passwordEncoder,
                                    ApplicationEventPublisher eventPublisher,
-                                   EmailVerificationService emailVerificationService) {
+                                   EmailVerificationService emailVerificationService,
+                                   EmailRateLimiter rateLimiter) {
         this.registrationRepository = registrationRepository;
         this.userRepository = userRepository;
         this.registrationMapper = registrationMapper;
         this.passwordEncoder = passwordEncoder;
         this.eventPublisher = eventPublisher;
         this.emailVerificationService = emailVerificationService;
+        this.rateLimiter = rateLimiter;
     }
 
     @Override
     public void sendOtp(String email) {
+        rateLimiter.check(email);
         emailVerificationService.sendCode(email);
     }
 
