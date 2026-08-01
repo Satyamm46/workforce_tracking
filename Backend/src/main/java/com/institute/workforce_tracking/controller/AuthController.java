@@ -69,12 +69,12 @@ public class AuthController {
     /**
      * Public: emails a one-time code that lets the holder set a new password.
      *
-     * <p>The response is identical whether or not an account exists for the
-     * address — deliberately, so this endpoint cannot be used to enumerate
-     * registered emails.</p>
+     * <p>An address with no account is rejected (404) rather than silently
+     * accepted, so someone who mistypes their email is told so instead of
+     * waiting on a code that was never sent.</p>
      *
      * @param request the address to send the code to
-     * @return 200 with a message that reveals nothing about the account
+     * @return 200 once the code is on its way
      */
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(
@@ -82,8 +82,7 @@ public class AuthController {
 
         authService.forgotPassword(request.email());
         return ResponseEntity.ok(ApiResponse.of(
-                "If an account exists for that email, a reset code has been sent to it.",
-                null));
+                "A reset code has been sent to your email.", null));
     }
 
     /**

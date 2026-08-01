@@ -32,10 +32,9 @@ const STEPS = ['Your email', 'Reset password'];
  * if the code matches, so controlling the inbox stands in for the forgotten
  * password.
  *
- * Step 1 always reports success, even for an address with no account — the API
- * keeps the two cases indistinguishable so strangers cannot probe which emails
- * are registered. That is why the confirmation wording is "if an account
- * exists" rather than a flat promise that a code is on its way.
+ * An address with no account fails step 1 outright and the error is shown in
+ * place — the flow never advances to the code screen for an email that could
+ * not have been sent one.
  */
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -63,10 +62,11 @@ const ForgotPasswordPage = () => {
     try {
       await authService.forgotPassword({ email });
       setStep(1);
-      setInfo(
-        `If an account exists for ${email}, a 6-digit code is on its way. Enter it below.`
-      );
+      setInfo(`We sent a 6-digit code to ${email}. Enter it below.`);
     } catch (err) {
+      // Covers the mistyped-email case: the backend 404s with "No account
+      // found with this email address", which is what surfaces here. The step
+      // deliberately does not advance.
       setError(err?.message ?? 'Could not send the reset code.');
     } finally {
       setBusy(false);
@@ -99,7 +99,7 @@ const ForgotPasswordPage = () => {
     setBusy(true);
     try {
       await authService.forgotPassword({ email });
-      setInfo(`A new code was sent to ${email} if an account exists for it.`);
+      setInfo(`A new code was sent to ${email}.`);
       setOtp('');
     } catch (err) {
       setError(err?.message ?? 'Could not resend the reset code.');

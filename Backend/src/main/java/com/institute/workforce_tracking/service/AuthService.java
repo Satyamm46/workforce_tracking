@@ -33,8 +33,8 @@ public interface AuthService {
     /**
      * Emails a one-time code that authorizes setting a new password.
      *
-     * <p>Returns normally whether or not an account exists for the address, so
-     * the response cannot be used to discover registered emails.</p>
+     * <p>Fails with a clear error if no account matches the address, so a
+     * mistyped email is reported instead of silently going nowhere.</p>
      *
      * @param email the address of the account to recover
      */

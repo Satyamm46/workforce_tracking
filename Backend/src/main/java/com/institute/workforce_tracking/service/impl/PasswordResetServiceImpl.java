@@ -3,7 +3,6 @@ package com.institute.workforce_tracking.service.impl;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.institute.workforce_tracking.entity.PasswordResetCode;
 import com.institute.workforce_tracking.entity.User;
 import com.institute.workforce_tracking.exception.BadRequestException;
+import com.institute.workforce_tracking.exception.ResourceNotFoundException;
 import com.institute.workforce_tracking.repository.PasswordResetCodeRepository;
 import com.institute.workforce_tracking.repository.UserRepository;
 import com.institute.workforce_tracking.service.PasswordResetService;
@@ -63,14 +63,19 @@ public class PasswordResetServiceImpl implements PasswordResetService {
     public void sendCode(String email) {
         String address = trim(email);
 
-        // No account, or a disabled one that could not sign in anyway: do
-        // nothing at all. The controller still reports success, so this
-        // endpoint reveals nothing about which addresses are registered.
-        Optional<User> account = userRepository.findByEmail(address)
-                .filter(User::isEnabled);
-        if (account.isEmpty()) {
-            log.info("Password reset requested for an unknown or disabled account — ignoring.");
-            return;
+        // Say plainly that the address is not registered rather than pretending
+        // a code was sent. A silent success leaves someone who simply mistyped
+        // their email waiting on a code that is never coming, with nothing on
+        // screen to tell them why.
+        User account = userRepository.findByEmailIgnoreCase(address)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No account found with this email address. "
+                                + "Check the spelling and try again."));
+
+        // A disabled account cannot sign in, so a new password would not help.
+        if (!account.isEnabled()) {
+            throw new BadRequestException(
+                    "This account is disabled. Contact your administrator.");
         }
 
         String code = generateCode();
@@ -87,7 +92,7 @@ public class PasswordResetServiceImpl implements PasswordResetService {
         resetCode.setConsumed(false);
         resetCodeRepository.save(resetCode);
 
-        sendEmail(address, account.get().getFullName(), code);
+        sendEmail(account.getEmail(), account.getFullName(), code);
     }
 
     @Override
@@ -119,7 +124,7 @@ public class PasswordResetServiceImpl implements PasswordResetService {
 
         // The account is re-read here rather than trusted from send time: it may
         // have been disabled or removed while the code was in the user's inbox.
-        User user = userRepository.findByEmail(address)
+        User user = userRepository.findByEmailIgnoreCase(address)
                 .filter(User::isEnabled)
                 .orElseThrow(() -> new BadRequestException(
                         "This account is no longer active. Contact your administrator."));

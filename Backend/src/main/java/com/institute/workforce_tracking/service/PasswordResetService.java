@@ -15,13 +15,17 @@ public interface PasswordResetService {
      * unconsumed code for the same email is replaced, so only the newest code
      * works.
      *
-     * <p>Deliberately silent when no active account matches the address: the
-     * caller returns the same response either way, so this endpoint cannot be
-     * used to discover which emails have accounts.</p>
+     * <p>Rejects an address with no account rather than silently doing nothing:
+     * a mistyped email is the common case here, and the user needs to see that
+     * rather than wait on a code that will never arrive. The trade-off is that
+     * this endpoint confirms which addresses are registered — already true of
+     * {@code POST /v1/registrations}, which rejects a duplicate email.</p>
      *
      * @param email the address to send the code to
+     * @throws com.institute.workforce_tracking.exception.ResourceNotFoundException
+     *         if no account exists for the address
      * @throws com.institute.workforce_tracking.exception.BadRequestException
-     *         if an account exists but the message could not be delivered
+     *         if the account is disabled, or the message could not be delivered
      */
     void sendCode(String email);
 

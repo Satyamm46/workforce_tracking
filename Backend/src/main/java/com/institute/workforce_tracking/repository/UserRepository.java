@@ -39,6 +39,21 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     /**
+     * Finds a user by email, ignoring capitalisation.
+     *
+     * <p>Used by password recovery, which reports "no account with that email"
+     * back to the caller: an exact-match lookup would turn a differently
+     * capitalised but perfectly valid address into a false "wrong email".
+     * Safe because {@code users.email} is unique — and on the MySQL collation
+     * this schema uses, uniqueness is itself case-insensitive — so at most one
+     * row can ever match.</p>
+     *
+     * @param email the email to search by, in any casing
+     * @return the matching user, if any
+     */
+    Optional<User> findByEmailIgnoreCase(String email);
+
+    /**
      * Checks whether a user with the given email already exists.
      *
      * <p>More efficient than fetching the whole entity when we only need to
