@@ -31,6 +31,12 @@ public record RegisterRequest(
 
         @NotBlank(message = "Password is required")
         @Size(min = 8, max = 72, message = "Password must be between 8 and 72 characters")
+        // Length alone leaves "password" and "12345678" acceptable on a public
+        // endpoint. Requiring a letter and a digit rules out the most common
+        // dictionary and keyboard-sequence guesses at negligible UX cost.
+        // The 72-character ceiling above is BCrypt's input limit, not a choice.
+        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*[0-9]).+$",
+                message = "Password must contain at least one letter and one number")
         String password,
 
         @NotBlank(message = "Phone number is required")

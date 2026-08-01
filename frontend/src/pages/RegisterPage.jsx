@@ -187,7 +187,7 @@ const RegisterPage = () => {
                       required
                       fullWidth
                       autoComplete="new-password"
-                      helperText="At least 8 characters"
+                      helperText="At least 8 characters, including a letter and a number"
                       disabled={busy}
                     />
 

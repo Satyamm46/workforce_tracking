@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
@@ -74,6 +75,24 @@ public class SecurityConfig {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
+                .headers(headers -> headers
+                        // Force HTTPS for a year. Spring only emits HSTS when it
+                        // believes the request was secure, and behind a tunnel it
+                        // sees plain HTTP on localhost — hence requestMatcher(any).
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31_536_000)
+                                .requestMatcher(request -> true))
+                        // This API serves only JSON; it should never be framed.
+                        .frameOptions(frame -> frame.deny())
+                        // Don't leak the API URL (which embeds the tunnel host)
+                        // to third parties via the Referer header.
+                        .referrerPolicy(referrer -> referrer.policy(
+                                ReferrerPolicy.NO_REFERRER))
+                        // Deny browser feature access outright: a JSON API has no
+                        // use for cameras, microphones or geolocation.
+                        .permissionsPolicyHeader(permissions -> permissions.policy(
+                                "camera=(), microphone=(), geolocation=(), payment=()")))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
