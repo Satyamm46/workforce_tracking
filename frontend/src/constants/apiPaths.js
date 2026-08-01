@@ -9,6 +9,8 @@ export const API_PATHS = Object.freeze({
   /** Auth endpoints. */
   AUTH_LOGIN: '/v1/auth/login',
   AUTH_ME: '/v1/auth/me',
+  AUTH_FORGOT_PASSWORD: '/v1/auth/forgot-password',
+  AUTH_RESET_PASSWORD: '/v1/auth/reset-password',
 
   /** User management base path. Item paths append `/{id}`. */
   USERS: '/v1/users',

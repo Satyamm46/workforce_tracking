@@ -8,12 +8,16 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  IconButton,
+  InputAdornment,
   Link,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useAuth } from '../context/AuthContext';
 
 /**
@@ -32,6 +36,9 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  // Lets the user read back what they typed — the usual cure for a password
+  // that keeps being rejected because of a typo or a stuck modifier key.
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -93,14 +100,38 @@ const LoginPage = () => {
 
               <TextField
                 label="Password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 fullWidth
                 autoComplete="current-password"
                 disabled={submitting}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          onClick={() => setShowPassword((visible) => !visible)}
+                          // Without this the field loses focus on mousedown and
+                          // the caret jumps to the end when it returns.
+                          onMouseDown={(e) => e.preventDefault()}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
               />
+
+              <Box sx={{ textAlign: 'right', mt: -1 }}>
+                <Link component={RouterLink} to="/forgot-password" variant="body2">
+                  Forgot password?
+                </Link>
+              </Box>
 
               <Button
                 type="submit"

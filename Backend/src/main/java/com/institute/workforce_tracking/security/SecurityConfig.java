@@ -42,6 +42,10 @@ public class SecurityConfig {
             "/actuator/health",
             "/actuator/info",
             "/v1/auth/login",
+            // Password recovery: reachable without a token by definition —
+            // the emailed code is what authorizes the change.
+            "/v1/auth/forgot-password",
+            "/v1/auth/reset-password",
             "/ws/**"
     };
 

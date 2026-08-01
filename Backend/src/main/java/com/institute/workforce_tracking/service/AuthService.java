@@ -1,6 +1,7 @@
 package com.institute.workforce_tracking.service;
 
 import com.institute.workforce_tracking.dto.request.LoginRequest;
+import com.institute.workforce_tracking.dto.request.ResetPasswordRequest;
 import com.institute.workforce_tracking.dto.response.AuthResponse;
 import com.institute.workforce_tracking.dto.response.UserResponse;
 
@@ -28,4 +29,21 @@ public interface AuthService {
      * @return the user's safe representation
      */
     UserResponse getCurrentUser(String email);
+
+    /**
+     * Emails a one-time code that authorizes setting a new password.
+     *
+     * <p>Returns normally whether or not an account exists for the address, so
+     * the response cannot be used to discover registered emails.</p>
+     *
+     * @param email the address of the account to recover
+     */
+    void forgotPassword(String email);
+
+    /**
+     * Sets a new password once the emailed code checks out.
+     *
+     * @param request the email, the 6-digit code, and the password to store
+     */
+    void resetPassword(ResetPasswordRequest request);
 }

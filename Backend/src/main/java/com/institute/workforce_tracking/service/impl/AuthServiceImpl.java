@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.institute.workforce_tracking.dto.request.LoginRequest;
+import com.institute.workforce_tracking.dto.request.ResetPasswordRequest;
 import com.institute.workforce_tracking.dto.response.AuthResponse;
 import com.institute.workforce_tracking.dto.response.UserResponse;
 import com.institute.workforce_tracking.entity.User;
@@ -20,6 +21,7 @@ import com.institute.workforce_tracking.repository.UserRepository;
 import com.institute.workforce_tracking.security.JwtUtil;
 import com.institute.workforce_tracking.security.SecurityUser;
 import com.institute.workforce_tracking.service.AuthService;
+import com.institute.workforce_tracking.service.PasswordResetService;
 
 import com.institute.workforce_tracking.util.EmailRateLimiter;
 
@@ -32,19 +34,22 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final EmailRateLimiter rateLimiter;
+    private final PasswordResetService passwordResetService;
 
     public AuthServiceImpl(AuthenticationManager authenticationManager,
                            JwtUtil jwtUtil,
                            UserRepository userRepository,
                            UserMapper userMapper,
                            ApplicationEventPublisher eventPublisher,
-                           EmailRateLimiter rateLimiter) {
+                           EmailRateLimiter rateLimiter,
+                           PasswordResetService passwordResetService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.eventPublisher = eventPublisher;
         this.rateLimiter = rateLimiter;
+        this.passwordResetService = passwordResetService;
     }
 
     @Override
@@ -78,5 +83,22 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
         return userMapper.toUserResponse(user);
+    }
+
+    @Override
+    public void forgotPassword(String email) {
+        // Rate-limited like login: this endpoint is public, sends mail, and is
+        // otherwise an easy way to drain the SMTP quota or spam an inbox.
+        rateLimiter.check(email);
+        passwordResetService.sendCode(email);
+    }
+
+    @Override
+    public void resetPassword(ResetPasswordRequest request) {
+        // The code is only 6 digits; without a limit here the per-code attempt
+        // cap could be sidestepped by requesting fresh codes in a loop.
+        rateLimiter.check(request.email());
+        passwordResetService.resetPassword(
+                request.email(), request.otp(), request.newPassword());
     }
 }

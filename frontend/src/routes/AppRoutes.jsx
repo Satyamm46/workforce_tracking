@@ -14,6 +14,7 @@ import LoginPage from '../pages/LoginPage';
  * flash on the most-requested page.
  */
 const RegisterPage = lazy(() => import('../pages/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('../pages/ForgotPasswordPage'));
 const HealthPage = lazy(() => import('../pages/HealthPage'));
 const MyAttendancePage = lazy(() => import('../pages/MyAttendancePage'));
 const AttendanceAdminPage = lazy(() => import('../pages/AttendanceAdminPage'));
@@ -53,6 +54,7 @@ const AppRoutes = () => {
         {/* Public */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         {/* Protected — guarded once; children render via <Outlet /> */}
         <Route element={<ProtectedRoute />}>

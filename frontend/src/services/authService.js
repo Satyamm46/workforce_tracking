@@ -32,6 +32,30 @@ export const getCurrentUser = () => {
 };
 
 /**
+ * Requests a one-time code for resetting a forgotten password. Public — no JWT.
+ *
+ * Resolves the same way whether or not an account exists for the address; the
+ * backend keeps that deliberately indistinguishable.
+ *
+ * @param {{ email: string }} payload
+ * @returns {Promise<{ data: null, message: string, success: boolean }>}
+ */
+export const forgotPassword = ({ email }) => {
+  return apiClient.post(API_PATHS.AUTH_FORGOT_PASSWORD, { email });
+};
+
+/**
+ * Sets a new password using the emailed code. Public — no JWT; the code is
+ * what authorizes the change.
+ *
+ * @param {{ email: string, otp: string, newPassword: string }} payload
+ * @returns {Promise<{ data: null, message: string, success: boolean }>}
+ */
+export const resetPassword = ({ email, otp, newPassword }) => {
+  return apiClient.post(API_PATHS.AUTH_RESET_PASSWORD, { email, otp, newPassword });
+};
+
+/**
  * Grouped export for namespace-style imports:
  *   import { authService } from '../services/authService';
  *   authService.login(...)
@@ -39,4 +63,6 @@ export const getCurrentUser = () => {
 export const authService = {
   login,
   getCurrentUser,
+  forgotPassword,
+  resetPassword,
 };
