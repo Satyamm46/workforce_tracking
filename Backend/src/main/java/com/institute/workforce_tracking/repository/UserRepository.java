@@ -88,4 +88,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     List<User> findByRole(Role role);
 
+    /**
+     * Every active account, alphabetically. Backs the dashboard drill-down for
+     * the total-headcount and absent tiles — the latter is the set difference
+     * between this and the users with attendance today.
+     *
+     * @return the enabled users, ordered by name
+     */
+    List<User> findByEnabledTrueOrderByFullName();
+
 }

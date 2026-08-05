@@ -2,7 +2,9 @@ package com.institute.workforce_tracking.service.impl;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.institute.workforce_tracking.dto.request.SubmitWorkReportRequest;
+import com.institute.workforce_tracking.dto.response.OpenWorkReportDayResponse;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
 import com.institute.workforce_tracking.dto.response.WorkReportResponse;
 import com.institute.workforce_tracking.entity.Attendance;
@@ -54,23 +57,15 @@ public class WorkReportServiceImpl implements WorkReportService {
 
     private static final int BASE_DEADLINE_HOURS = 24;
 
+    /** How far back the "still owed" day list looks. Anything older is closed anyway. */
+    private static final int OPEN_DAYS_LOOKBACK = 60;
+
     @Override
     @Transactional
     public WorkReportResponse submitReport(String email, SubmitWorkReportRequest request) {
         User user = findUserByEmail(email);
+        Attendance attendance = resolveAttendance(user, request.workDate());
 
-        // Find the most recent checked-out attendance for this user.
-        Pageable recentCheckout = PageRequest.of(0, 1, Sort.by("workDate").descending());
-        List<Attendance> recent = attendanceRepository
-                .findByUserAndStatus(user, AttendanceStatus.CHECKED_OUT, recentCheckout)
-                .getContent();
-
-        if (recent.isEmpty()) {
-            throw new BadRequestException(
-                    "No checked-out attendance found. Check out first before submitting a report.");
-        }
-
-        Attendance attendance = recent.get(0);
         if (workReportRepository.existsByUserAndWorkDate(user, attendance.getWorkDate())) {
             throw new BadRequestException(
                     "You have already submitted a report for " + attendance.getWorkDate() + ".");
@@ -104,6 +99,38 @@ public class WorkReportServiceImpl implements WorkReportService {
         }
 
         return workReportMapper.toWorkReportResponse(workReportRepository.save(report));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OpenWorkReportDayResponse> getOpenReportDays(String email) {
+        User user = findUserByEmail(email);
+        LocalDateTime now = DateTimeUtil.now();
+        LocalDate latest = latestCheckout(user).map(Attendance::getWorkDate).orElse(null);
+
+        return attendanceRepository
+                .findByUserAndStatusAndWorkDateGreaterThanEqual(user, AttendanceStatus.CHECKED_OUT,
+                        DateTimeUtil.today().minusDays(OPEN_DAYS_LOOKBACK))
+                .stream()
+                .filter(attendance -> !workReportRepository.existsByUserAndWorkDate(
+                        user, attendance.getWorkDate()))
+                // Mirrors what resolveAttendance accepts, so the picker never
+                // offers a day the submit would reject: the most recent day
+                // always, earlier days only while their window is open.
+                .filter(attendance -> attendance.getWorkDate().equals(latest)
+                        || !now.isAfter(effectiveDeadline(user, attendance)))
+                .sorted(Comparator.comparing(Attendance::getWorkDate).reversed())
+                .map(attendance -> {
+                    LocalDateTime deadline = effectiveDeadline(user, attendance);
+                    return new OpenWorkReportDayResponse(
+                            attendance.getWorkDate(),
+                            attendance.getLogoutTime(),
+                            deadline,
+                            extraHours(user, attendance.getWorkDate()),
+                            attendance.isAbsentNoReport(),
+                            now.isAfter(deadline));
+                })
+                .toList();
     }
 
     @Override
@@ -175,14 +202,65 @@ public class WorkReportServiceImpl implements WorkReportService {
         return overdueCheckouts.size();
     }
 
+    /**
+     * The checked-out day a submission applies to.
+     *
+     * <p>With no {@code workDate} this is the most recent checkout, which is
+     * how the form has always behaved. An explicit earlier day is allowed only
+     * while its window is still open — otherwise anyone could quietly
+     * back-fill weeks of missed reports. Since the base window is 24h from
+     * checkout, in practice an older day only opens when an admin extends it.</p>
+     */
+    private Attendance resolveAttendance(User user, LocalDate workDate) {
+        Attendance latest = latestCheckout(user)
+                .orElseThrow(() -> new BadRequestException(
+                        "No checked-out attendance found. "
+                                + "Check out first before submitting a report."));
+
+        if (workDate == null || workDate.equals(latest.getWorkDate())) {
+            // The latest day stays submittable even once its deadline has
+            // passed — it is simply flagged late, as before.
+            return latest;
+        }
+
+        Attendance attendance = attendanceRepository.findByUserAndWorkDate(user, workDate)
+                .filter(record -> record.getStatus() == AttendanceStatus.CHECKED_OUT)
+                .orElseThrow(() -> new BadRequestException(
+                        "No checked-out attendance found for " + workDate + "."));
+
+        if (DateTimeUtil.now().isAfter(effectiveDeadline(user, attendance))) {
+            throw new BadRequestException(
+                    "The reporting window for " + workDate + " has closed. Ask an admin to "
+                            + "extend the work report deadline for that day.");
+        }
+        return attendance;
+    }
+
+    /**
+     * The user's most recent checked-out day — the default target of a
+     * submission, and the one day the picker always offers.
+     */
+    private Optional<Attendance> latestCheckout(User user) {
+        Pageable recentCheckout = PageRequest.of(0, 1, Sort.by("workDate").descending());
+        return attendanceRepository
+                .findByUserAndStatus(user, AttendanceStatus.CHECKED_OUT, recentCheckout)
+                .getContent()
+                .stream()
+                .findFirst();
+    }
+
     /** Checkout + 24h, plus any admin-granted extension for that day. */
     private LocalDateTime effectiveDeadline(User user, Attendance attendance) {
-        int extraHours = deadlineExtensionRepository
-                .findByUserAndTypeAndTargetDate(user, DeadlineType.WORK_REPORT,
-                        attendance.getWorkDate())
+        return attendance.getLogoutTime()
+                .plusHours(BASE_DEADLINE_HOURS + extraHours(user, attendance.getWorkDate()));
+    }
+
+    /** Hours an admin added to this user's report deadline for a day, 0 if none. */
+    private int extraHours(User user, LocalDate workDate) {
+        return deadlineExtensionRepository
+                .findByUserAndTypeAndTargetDate(user, DeadlineType.WORK_REPORT, workDate)
                 .map(DeadlineExtension::getExtraHours)
                 .orElse(0);
-        return attendance.getLogoutTime().plusHours(BASE_DEADLINE_HOURS + extraHours);
     }
 
     private User findUserByEmail(String email) {

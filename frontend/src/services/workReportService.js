@@ -5,9 +5,18 @@ import { API_PATHS } from '../constants/apiPaths';
  * Service module for end-of-day work report API calls.
  */
 
-/** Submits the caller's work report for their most recent checkout. */
+/**
+ * Submits the caller's work report. Pass `workDate` to file for an earlier
+ * checked-out day (only accepted while that day's deadline is still open);
+ * omit it for the most recent checkout.
+ */
 export const submitReport = (payload) => {
   return apiClient.post(API_PATHS.WORK_REPORTS, payload);
+};
+
+/** Checked-out days the caller still owes a report for and can still submit. */
+export const getOpenReportDays = () => {
+  return apiClient.get(API_PATHS.WORK_REPORTS_ME_OPEN_DAYS);
 };
 
 /** The caller's report for a specific day (null = today). */
@@ -37,6 +46,7 @@ export const getReportsByRange = (from, to, page = 0, size = 100) => {
 
 export const workReportService = {
   submitReport,
+  getOpenReportDays,
   getMyReportForDay,
   getMyReports,
   getReportsByDate,

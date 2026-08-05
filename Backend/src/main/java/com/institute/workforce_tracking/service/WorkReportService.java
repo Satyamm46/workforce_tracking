@@ -2,7 +2,10 @@ package com.institute.workforce_tracking.service;
 
 import java.time.LocalDate;
 
+import java.util.List;
+
 import com.institute.workforce_tracking.dto.request.SubmitWorkReportRequest;
+import com.institute.workforce_tracking.dto.response.OpenWorkReportDayResponse;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
 import com.institute.workforce_tracking.dto.response.WorkReportResponse;
 
@@ -14,11 +17,22 @@ import com.institute.workforce_tracking.dto.response.WorkReportResponse;
 public interface WorkReportService {
 
     /**
-     * Submits the caller's work report for the most recent checked-out day.
-     * Throws BadRequest if no checked-out attendance exists or a report was
-     * already submitted for that day.
+     * Submits the caller's work report. The request's {@code workDate} picks
+     * the day; when it is omitted the most recent checked-out day is used.
+     *
+     * <p>An earlier day is accepted only while its deadline is still open,
+     * which in practice means an admin has extended it. Throws BadRequest if
+     * no checked-out attendance exists for the day, a report was already
+     * submitted for it, or its window has closed.</p>
      */
     WorkReportResponse submitReport(String email, SubmitWorkReportRequest request);
+
+    /**
+     * Days the caller has checked out of, still owes a report for, and can
+     * still file one for. Drives the day picker on the submission form —
+     * without it an extended older day is unreachable.
+     */
+    List<OpenWorkReportDayResponse> getOpenReportDays(String email);
 
     /** The caller's report for a specific day (404 if none). */
     WorkReportResponse getMyReportForDay(String email, LocalDate date);

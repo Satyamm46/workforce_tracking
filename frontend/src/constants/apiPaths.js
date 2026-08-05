@@ -60,6 +60,7 @@ export const API_PATHS = Object.freeze({
   WORK_REPORTS: '/v1/work-reports',
   WORK_REPORTS_ME: '/v1/work-reports/me',
   WORK_REPORTS_ME_DAY: '/v1/work-reports/me/day',
+  WORK_REPORTS_ME_OPEN_DAYS: '/v1/work-reports/me/open-days',
 
   /** Lecture summary endpoints (post-lecture summaries). */
   LECTURE_SUMMARIES: '/v1/lecture-summaries',
@@ -70,6 +71,7 @@ export const API_PATHS = Object.freeze({
 
   /** Dashboard endpoints. */
   DASHBOARD_STATS: '/v1/dashboard/stats',
+  DASHBOARD_MEMBERS: '/v1/dashboard/members',
 
   /** Report endpoints. */
   REPORTS_ATTENDANCE: '/v1/reports/attendance',

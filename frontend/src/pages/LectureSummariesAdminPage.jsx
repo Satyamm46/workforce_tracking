@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import MainLayout from '../layouts/MainLayout';
+import ExpandableText from '../components/ExpandableText';
 import { lectureSummaryService } from '../services/lectureSummaryService';
 import { formatDateTime, formatTimeOfDay, monthRange } from '../utils/formatters';
 import { downloadCsv } from '../utils/csv';
@@ -227,9 +228,7 @@ const LectureSummariesAdminPage = () => {
                         <TableCell>{s.subject}</TableCell>
                         <TableCell>{s.className}</TableCell>
                         <TableCell sx={{ maxWidth: 400 }}>
-                          <Typography variant="body2" noWrap title={s.summaryText}>
-                            {s.summaryText}
-                          </Typography>
+                          <ExpandableText text={s.summaryText} />
                         </TableCell>
                         <TableCell>{formatDateTime(s.submittedAt)}</TableCell>
                         <TableCell>

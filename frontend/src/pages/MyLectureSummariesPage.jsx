@@ -16,6 +16,7 @@ import {
   Typography,
 } from '@mui/material';
 import MainLayout from '../layouts/MainLayout';
+import ExpandableText from '../components/ExpandableText';
 import { lectureSummaryService } from '../services/lectureSummaryService';
 import { formatDateTime } from '../utils/formatters';
 
@@ -98,9 +99,7 @@ const MyLectureSummariesPage = () => {
                         <TableCell>{s.subject}</TableCell>
                         <TableCell>{s.className}</TableCell>
                         <TableCell sx={{ maxWidth: 380 }}>
-                          <Typography variant="body2" noWrap title={s.summaryText}>
-                            {s.summaryText}
-                          </Typography>
+                          <ExpandableText text={s.summaryText} />
                         </TableCell>
                         <TableCell>{formatDateTime(s.submittedAt)}</TableCell>
                         <TableCell>

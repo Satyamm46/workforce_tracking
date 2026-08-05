@@ -1,6 +1,7 @@
 package com.institute.workforce_tracking.repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,4 +39,15 @@ public interface WorkBreakRepository extends JpaRepository<WorkBreak, Long> {
      */
     @EntityGraph(attributePaths = {"attendance", "attendance.user"})
     List<WorkBreak> findByEndTimeIsNullAndAutoStartedTrueAndStartTimeBefore(LocalDateTime cutoff);
+
+    /**
+     * The open breaks for a set of working days, in one query.
+     *
+     * <p>Backs the dashboard's "on break since" column: asking per attendance
+     * would issue one query per person on the list.</p>
+     *
+     * @param attendances the working days to look in
+     * @return their currently open breaks
+     */
+    List<WorkBreak> findByAttendanceInAndEndTimeIsNull(Collection<Attendance> attendances);
 }

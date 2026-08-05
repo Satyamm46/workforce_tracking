@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import MainLayout from '../layouts/MainLayout';
+import ExpandableText from '../components/ExpandableText';
 import { workPlanService } from '../services/workPlanService';
 import { formatTimeOfDay } from '../utils/formatters';
 
@@ -251,9 +252,7 @@ const MySchedulePage = () => {
                         <TableCell>{formatTimeOfDay(plan.plannedStartTime)}</TableCell>
                         <TableCell>{formatTimeOfDay(plan.plannedEndTime)}</TableCell>
                         <TableCell sx={{ maxWidth: 360 }}>
-                          <Typography variant="body2" noWrap title={plan.workDescription}>
-                            {plan.workDescription}
-                          </Typography>
+                          <ExpandableText text={plan.workDescription} />
                         </TableCell>
                         <TableCell>
                           <Chip

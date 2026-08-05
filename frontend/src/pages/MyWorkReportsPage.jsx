@@ -7,6 +7,7 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -20,20 +21,31 @@ import {
 } from '@mui/material';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import MainLayout from '../layouts/MainLayout';
+import ExpandableText from '../components/ExpandableText';
 import { workReportService } from '../services/workReportService';
 import { formatDateTime } from '../utils/formatters';
 
 const PAGE_SIZE = 10;
 
 /**
- * User's work report screen: submit an end-of-day report for the most recent
- * checkout (required within 24h to avoid absence), plus history.
+ * User's work report screen: submit a report for any checked-out day that is
+ * still owed one (required within 24h of checkout to avoid absence), plus
+ * history.
+ *
+ * The day is chosen explicitly rather than always assumed to be the latest
+ * checkout. Otherwise a day whose deadline an admin extended could never be
+ * filled in: once you check out again, the form would silently point at the
+ * newer day and the extended one would stay unreported forever.
  */
 const MyWorkReportsPage = () => {
   const [reportText, setReportText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
+
+  const [openDays, setOpenDays] = useState([]);
+  const [openDaysLoading, setOpenDaysLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState('');
 
   const [history, setHistory] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -51,9 +63,30 @@ const MyWorkReportsPage = () => {
     }
   }, []);
 
+  const loadOpenDays = useCallback(async () => {
+    setOpenDaysLoading(true);
+    try {
+      const response = await workReportService.getOpenReportDays();
+      const days = response.data ?? [];
+      setOpenDays(days);
+      // The API returns them newest first; default to the most recent day owed.
+      setSelectedDate(days.length > 0 ? days[0].workDate : '');
+    } catch (err) {
+      setError(err?.message ?? 'Failed to load the days awaiting a report.');
+    } finally {
+      setOpenDaysLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadHistory(page);
   }, [page, loadHistory]);
+
+  useEffect(() => {
+    loadOpenDays();
+  }, [loadOpenDays]);
+
+  const selectedDay = openDays.find((day) => day.workDate === selectedDate) ?? null;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -61,10 +94,14 @@ const MyWorkReportsPage = () => {
     setError(null);
     setSuccess(null);
     try {
-      const response = await workReportService.submitReport({ reportText });
+      const response = await workReportService.submitReport({
+        reportText,
+        workDate: selectedDate || null,
+      });
       setSuccess(response.message);
       setReportText('');
-      await loadHistory(0);
+      // The submitted day drops out of the owed list, so refresh both.
+      await Promise.all([loadHistory(0), loadOpenDays()]);
       setPage(0);
     } catch (err) {
       setError(err?.message ?? 'Failed to submit the report.');
@@ -101,31 +138,101 @@ const MyWorkReportsPage = () => {
           <CardContent>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
               <AssignmentIcon color="primary" />
-              <Typography variant="h6">Submit Today's Report</Typography>
+              <Typography variant="h6">Submit Work Report</Typography>
             </Stack>
 
-            <form onSubmit={handleSubmit}>
-              <Stack spacing={2.5}>
-                <TextField
-                  label="What did you accomplish today?"
-                  value={reportText}
-                  onChange={(e) => setReportText(e.target.value)}
-                  required
-                  fullWidth
-                  multiline
-                  minRows={4}
-                  slotProps={{ htmlInput: { maxLength: 2000 } }}
-                  helperText={`${reportText.length}/2000 — Submit within 24h of checkout to avoid absence.`}
-                  disabled={submitting}
-                />
+            {openDaysLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : openDays.length === 0 ? (
+              <Alert severity="info">
+                Nothing to submit right now — no checked-out day is waiting on a report. If you
+                missed a day whose deadline has already passed, ask an admin to extend the work
+                report deadline for that date and it will appear here.
+              </Alert>
+            ) : (
+              <form onSubmit={handleSubmit}>
+                <Stack spacing={2.5}>
+                  {openDays.length > 1 ? (
+                    <TextField
+                      select
+                      label="Report for"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      fullWidth
+                      disabled={submitting}
+                      helperText="You owe a report for more than one day — pick the day this report covers."
+                    >
+                      {openDays.map((day) => (
+                        <MenuItem key={day.workDate} value={day.workDate}>
+                          {day.workDate}
+                          {day.extraHours > 0 ? ` · extended +${day.extraHours}h` : ''}
+                          {day.overdue ? ' · overdue' : ''}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Reporting for <strong>{selectedDate}</strong>
+                    </Typography>
+                  )}
 
-                <Box>
-                  <Button type="submit" variant="contained" disabled={submitting}>
-                    {submitting ? <CircularProgress size={22} color="inherit" /> : 'Submit Report'}
-                  </Button>
-                </Box>
-              </Stack>
-            </form>
+                  {selectedDay && (
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label={`Checked out ${formatDateTime(selectedDay.checkoutTime)}`}
+                      />
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color={selectedDay.overdue ? 'warning' : 'default'}
+                        label={`Due ${formatDateTime(selectedDay.deadline)}`}
+                      />
+                      {selectedDay.extraHours > 0 && (
+                        <Chip
+                          size="small"
+                          color="info"
+                          label={`Deadline extended +${selectedDay.extraHours}h`}
+                        />
+                      )}
+                    </Stack>
+                  )}
+
+                  {selectedDay?.markedAbsent && (
+                    <Alert severity="warning">
+                      This day is currently marked absent for the missing report. Submitting now
+                      clears that.
+                    </Alert>
+                  )}
+
+                  <TextField
+                    label="What did you accomplish on this day?"
+                    value={reportText}
+                    onChange={(e) => setReportText(e.target.value)}
+                    required
+                    fullWidth
+                    multiline
+                    minRows={4}
+                    slotProps={{ htmlInput: { maxLength: 2000 } }}
+                    helperText={`${reportText.length}/2000 — Submit within 24h of checkout to avoid absence.`}
+                    disabled={submitting}
+                  />
+
+                  <Box>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      disabled={submitting || !selectedDate}
+                    >
+                      {submitting ? <CircularProgress size={22} color="inherit" /> : 'Submit Report'}
+                    </Button>
+                  </Box>
+                </Stack>
+              </form>
+            )}
           </CardContent>
         </Card>
 
@@ -156,9 +263,7 @@ const MyWorkReportsPage = () => {
                       <TableRow key={report.id} hover>
                         <TableCell>{report.workDate}</TableCell>
                         <TableCell sx={{ maxWidth: 400 }}>
-                          <Typography variant="body2" noWrap title={report.reportText}>
-                            {report.reportText}
-                          </Typography>
+                          <ExpandableText text={report.reportText} />
                         </TableCell>
                         <TableCell>{formatDateTime(report.submittedAt)}</TableCell>
                         <TableCell>

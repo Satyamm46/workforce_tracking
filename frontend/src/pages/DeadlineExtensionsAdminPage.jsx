@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import MoreTimeIcon from '@mui/icons-material/MoreTime';
 import MainLayout from '../layouts/MainLayout';
+import ExpandableText from '../components/ExpandableText';
 import { deadlineExtensionService } from '../services/deadlineExtensionService';
 import { userService } from '../services/userService';
 
@@ -273,9 +274,7 @@ const DeadlineExtensionsAdminPage = () => {
                         <TableCell>+{ext.extraHours}h</TableCell>
                         <TableCell>{ext.grantedBy}</TableCell>
                         <TableCell sx={{ maxWidth: 260 }}>
-                          <Typography variant="body2" noWrap title={ext.reason ?? ''}>
-                            {ext.reason ?? '—'}
-                          </Typography>
+                          <ExpandableText text={ext.reason} />
                         </TableCell>
                         <TableCell align="right">
                           <Button

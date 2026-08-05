@@ -82,6 +82,14 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     /** All attendance rows with a specific status, most recent first (for finding last checkout). */
     Page<Attendance> findByUserAndStatus(User user, AttendanceStatus status, Pageable pageable);
 
+    /**
+     * A user's checked-out days from {@code from} onwards. Backs the list of
+     * days that still owe a work report, bounded to a recent window so the
+     * scan stays small.
+     */
+    java.util.List<Attendance> findByUserAndStatusAndWorkDateGreaterThanEqual(
+            User user, AttendanceStatus status, LocalDate from);
+
     /** All checked-out attendances whose checkout is before a cutoff (for report deadline sweep). */
     java.util.List<Attendance> findByStatusAndLogoutTimeLessThanEqual(
             AttendanceStatus status, java.time.LocalDateTime logoutTime);
@@ -93,6 +101,25 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
      */
     @EntityGraph(attributePaths = "user")
     java.util.List<Attendance> findByWorkDateAndStatus(LocalDate workDate, AttendanceStatus status);
+
+    /**
+     * A day's attendance across several statuses at once, users pre-fetched.
+     * Backs the dashboard drill-down, where "online" spans two statuses and
+     * the whole-day view spans all of them.
+     */
+    @EntityGraph(attributePaths = "user")
+    java.util.List<Attendance> findByWorkDateAndStatusIn(
+            LocalDate workDate, java.util.Collection<AttendanceStatus> statuses);
+
+    /**
+     * The ids of users who have any attendance record on a day.
+     *
+     * <p>Absence is defined by the lack of a row, so it cannot be queried
+     * directly; the dashboard subtracts this set from the active accounts.
+     * Only ids are selected — the names come from the user table anyway.</p>
+     */
+    @Query("SELECT a.user.id FROM Attendance a WHERE a.workDate = :workDate")
+    java.util.Set<Long> findUserIdsByWorkDate(@Param("workDate") LocalDate workDate);
     
         /**
      * Builds the per-employee attendance summary for a date range in a single

@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import MainLayout from '../layouts/MainLayout';
+import ExpandableText from '../components/ExpandableText';
 import { workReportService } from '../services/workReportService';
 import { formatDateTime, formatTime, formatTimeOfDay, monthRange } from '../utils/formatters';
 import { downloadCsv } from '../utils/csv';
@@ -239,9 +240,7 @@ const WorkReportsAdminPage = () => {
                         <TableCell>{report.userFullName}</TableCell>
                         <TableCell>{report.workDate}</TableCell>
                         <TableCell sx={{ maxWidth: 450 }}>
-                          <Typography variant="body2" noWrap title={report.reportText}>
-                            {report.reportText}
-                          </Typography>
+                          <ExpandableText text={report.reportText} />
                         </TableCell>
                         <TableCell>{formatDateTime(report.submittedAt)}</TableCell>
                         <TableCell>

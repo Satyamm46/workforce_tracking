@@ -1,6 +1,7 @@
 package com.institute.workforce_tracking.controller;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.institute.workforce_tracking.constants.ApiConstants;
 import com.institute.workforce_tracking.dto.request.SubmitWorkReportRequest;
 import com.institute.workforce_tracking.dto.response.ApiResponse;
+import com.institute.workforce_tracking.dto.response.OpenWorkReportDayResponse;
 import com.institute.workforce_tracking.dto.response.PagedResponse;
 import com.institute.workforce_tracking.dto.response.WorkReportResponse;
 import com.institute.workforce_tracking.service.WorkReportService;
@@ -38,7 +40,11 @@ public class WorkReportController {
         this.workReportService = workReportService;
     }
 
-    /** Submits the caller's work report for their most recent checkout. */
+    /**
+     * Submits the caller's work report. Defaults to their most recent
+     * checkout; a {@code workDate} in the body targets an earlier day, which is
+     * accepted only while that day's deadline is still open.
+     */
     @PostMapping
     @PreAuthorize("hasAnyRole('EMPLOYEE', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<WorkReportResponse>> submitReport(
@@ -49,6 +55,17 @@ public class WorkReportController {
                 workReportService.submitReport(authentication.getName(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.of("Work report submitted", report));
+    }
+
+    /** Days the caller still owes a report for and can still submit one for. */
+    @GetMapping("/me/open-days")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<List<OpenWorkReportDayResponse>>> getOpenReportDays(
+            Authentication authentication) {
+
+        List<OpenWorkReportDayResponse> days =
+                workReportService.getOpenReportDays(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.of("Open report days retrieved", days));
     }
 
     /** The caller's report for a specific day (404 if none). */
