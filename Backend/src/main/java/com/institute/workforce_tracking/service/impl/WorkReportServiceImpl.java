@@ -88,11 +88,15 @@ public class WorkReportServiceImpl implements WorkReportService {
                     report.setPlannedWork(plan.getWorkDescription());
                 });
 
-        report.setSubmittedLate(report.getSubmittedAt()
-                .isAfter(effectiveDeadline(user, attendance)));
+        // Measured against the normal window, not the extended one: a report
+        // can no longer arrive after the extended deadline at all, so comparing
+        // with that would make the flag permanently false. Late now means
+        // exactly "only an admin extension let this through".
+        report.setSubmittedLate(report.getSubmittedAt().isAfter(baseDeadline(attendance)));
 
-        // A late-but-within-extension submission also lifts an absence the
-        // sweep may already have applied.
+        // Lifts an absence the sweep applied before the extension was granted.
+        // Granting normally clears it, so this is a safety net for the gap
+        // between a sweep and the grant it races.
         if (attendance.isAbsentNoReport()) {
             attendance.setAbsentNoReport(false);
             attendanceRepository.save(attendance);
@@ -106,7 +110,6 @@ public class WorkReportServiceImpl implements WorkReportService {
     public List<OpenWorkReportDayResponse> getOpenReportDays(String email) {
         User user = findUserByEmail(email);
         LocalDateTime now = DateTimeUtil.now();
-        LocalDate latest = latestCheckout(user).map(Attendance::getWorkDate).orElse(null);
 
         return attendanceRepository
                 .findByUserAndStatusAndWorkDateGreaterThanEqual(user, AttendanceStatus.CHECKED_OUT,
@@ -114,22 +117,18 @@ public class WorkReportServiceImpl implements WorkReportService {
                 .stream()
                 .filter(attendance -> !workReportRepository.existsByUserAndWorkDate(
                         user, attendance.getWorkDate()))
-                // Mirrors what resolveAttendance accepts, so the picker never
-                // offers a day the submit would reject: the most recent day
-                // always, earlier days only while their window is open.
-                .filter(attendance -> attendance.getWorkDate().equals(latest)
-                        || !now.isAfter(effectiveDeadline(user, attendance)))
+                // The same test resolveAttendance applies, so the picker can
+                // never offer a day the submit would reject. A closed day
+                // simply disappears until an admin extends it.
+                .filter(attendance -> !now.isAfter(effectiveDeadline(user, attendance)))
                 .sorted(Comparator.comparing(Attendance::getWorkDate).reversed())
-                .map(attendance -> {
-                    LocalDateTime deadline = effectiveDeadline(user, attendance);
-                    return new OpenWorkReportDayResponse(
-                            attendance.getWorkDate(),
-                            attendance.getLogoutTime(),
-                            deadline,
-                            extraHours(user, attendance.getWorkDate()),
-                            attendance.isAbsentNoReport(),
-                            now.isAfter(deadline));
-                })
+                .map(attendance -> new OpenWorkReportDayResponse(
+                        attendance.getWorkDate(),
+                        attendance.getLogoutTime(),
+                        effectiveDeadline(user, attendance),
+                        extraHours(user, attendance.getWorkDate()),
+                        attendance.isAbsentNoReport(),
+                        now.isAfter(baseDeadline(attendance))))
                 .toList();
     }
 
@@ -203,37 +202,45 @@ public class WorkReportServiceImpl implements WorkReportService {
     }
 
     /**
-     * The checked-out day a submission applies to.
+     * The checked-out day a submission applies to, once it is established that
+     * the day may still be reported on.
      *
      * <p>With no {@code workDate} this is the most recent checkout, which is
-     * how the form has always behaved. An explicit earlier day is allowed only
-     * while its window is still open — otherwise anyone could quietly
-     * back-fill weeks of missed reports. Since the base window is 24h from
-     * checkout, in practice an older day only opens when an admin extends it.</p>
+     * how the form has always behaved. Whichever day is targeted, the window
+     * is enforced the same way: past the deadline nothing can be filed, and
+     * the only thing that reopens a lapsed day is an admin extension. A day
+     * left unreported once its window closes stays marked absent — there is
+     * deliberately no path for a user to clear that on their own.</p>
      */
     private Attendance resolveAttendance(User user, LocalDate workDate) {
-        Attendance latest = latestCheckout(user)
-                .orElseThrow(() -> new BadRequestException(
+        Attendance attendance = workDate == null
+                ? latestCheckout(user).orElseThrow(() -> new BadRequestException(
                         "No checked-out attendance found. "
-                                + "Check out first before submitting a report."));
+                                + "Check out first before submitting a report."))
+                : attendanceRepository.findByUserAndWorkDate(user, workDate)
+                        .filter(record -> record.getStatus() == AttendanceStatus.CHECKED_OUT)
+                        .orElseThrow(() -> new BadRequestException(
+                                "No checked-out attendance found for " + workDate + "."));
 
-        if (workDate == null || workDate.equals(latest.getWorkDate())) {
-            // The latest day stays submittable even once its deadline has
-            // passed — it is simply flagged late, as before.
-            return latest;
-        }
-
-        Attendance attendance = attendanceRepository.findByUserAndWorkDate(user, workDate)
-                .filter(record -> record.getStatus() == AttendanceStatus.CHECKED_OUT)
-                .orElseThrow(() -> new BadRequestException(
-                        "No checked-out attendance found for " + workDate + "."));
-
-        if (DateTimeUtil.now().isAfter(effectiveDeadline(user, attendance))) {
-            throw new BadRequestException(
-                    "The reporting window for " + workDate + " has closed. Ask an admin to "
-                            + "extend the work report deadline for that day.");
+        LocalDateTime deadline = effectiveDeadline(user, attendance);
+        if (DateTimeUtil.now().isAfter(deadline)) {
+            throw new BadRequestException(closedWindowMessage(user, attendance, deadline));
         }
         return attendance;
+    }
+
+    /**
+     * Why a submission was refused, phrased so the user knows whether asking
+     * an admin is worth it: a day that has already been extended once needs a
+     * further extension, not a first one.
+     */
+    private String closedWindowMessage(User user, Attendance attendance, LocalDateTime deadline) {
+        boolean alreadyExtended = extraHours(user, attendance.getWorkDate()) > 0;
+        return "The " + (alreadyExtended ? "extended " : "")
+                + "reporting window for " + attendance.getWorkDate() + " closed on "
+                + DateTimeUtil.formatDateTime(deadline) + ", so that day stays marked absent. "
+                + "Only an admin can reopen it by "
+                + (alreadyExtended ? "extending the deadline again." : "extending the deadline.");
     }
 
     /**
@@ -249,10 +256,14 @@ public class WorkReportServiceImpl implements WorkReportService {
                 .findFirst();
     }
 
+    /** Checkout + 24h: the window everyone gets without asking anyone. */
+    private LocalDateTime baseDeadline(Attendance attendance) {
+        return attendance.getLogoutTime().plusHours(BASE_DEADLINE_HOURS);
+    }
+
     /** Checkout + 24h, plus any admin-granted extension for that day. */
     private LocalDateTime effectiveDeadline(User user, Attendance attendance) {
-        return attendance.getLogoutTime()
-                .plusHours(BASE_DEADLINE_HOURS + extraHours(user, attendance.getWorkDate()));
+        return baseDeadline(attendance).plusHours(extraHours(user, attendance.getWorkDate()));
     }
 
     /** Hours an admin added to this user's report deadline for a day, 0 if none. */

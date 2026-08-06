@@ -40,6 +40,9 @@ public enum NotificationType {
     /** Reminder shortly before the user's declared work-start time. */
     WORK_START_REMINDER,
 
+    /** The user's work day is about to end — extend the time or check out. */
+    WORK_END_REMINDER,
+
     /** The user's overtime window is about to close — extend or check out. */
     OVERTIME_REMINDER,
 

@@ -121,4 +121,14 @@ public class Attendance extends BaseEntity {
     @Column(nullable = false)
     @org.hibernate.annotations.ColumnDefault("false")
     private boolean overtimeReminderSent = false;
+
+    /**
+     * Whether the "your work day is about to end" heads-up has been sent.
+     * Sent once per day, shortly BEFORE the declared logout time — unlike
+     * {@link #overtimeReminderSent}, which fires only once the employee is
+     * already past that time and inside an overtime window.
+     */
+    @Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("false")
+    private boolean endReminderSent = false;
 }

@@ -58,6 +58,15 @@ public class LectureSummaryServiceImpl implements LectureSummaryService {
         if (!lecture.getTeacher().getId().equals(teacher.getId())) {
             throw new ResourceNotFoundException("Lecture", "id", lectureId);
         }
+        // Once the sweep has run, a lapsed lecture carries this status, and it
+        // is worth its own message: the teacher's next step is asking an admin,
+        // not waiting for the lecture to complete.
+        if (lecture.getStatus() == LectureStatus.SUMMARY_MISSED) {
+            throw new BadRequestException(
+                    "The summary window for this lecture has closed, so it stays marked "
+                            + "summary-missed. Only an admin can reopen it by extending the "
+                            + "lecture summary deadline for " + lecture.getLectureDate() + ".");
+        }
         if (lecture.getStatus() != LectureStatus.COMPLETED) {
             throw new BadRequestException(
                     "A summary can only be submitted for a completed lecture.");
@@ -71,13 +80,29 @@ public class LectureSummaryServiceImpl implements LectureSummaryService {
         LocalTime effectiveEnd = lecture.getEffectiveEndTime();
         LocalDateTime lectureEndTime = lecture.getLectureDate().atTime(effectiveEnd);
 
+        // The same window the sweep punishes, enforced here so the two cannot
+        // disagree. The sweep runs every 15 minutes, so without this check a
+        // lecture stays submittable for up to a quarter of an hour past its
+        // deadline purely because nothing has got round to marking it yet.
+        LocalDateTime deadline = effectiveDeadline(teacher, lecture, lectureEndTime);
+        if (DateTimeUtil.now().isAfter(deadline)) {
+            throw new BadRequestException(
+                    "The " + (hasExtension(teacher, lecture) ? "extended " : "")
+                            + "summary window for this lecture closed on "
+                            + DateTimeUtil.formatDateTime(deadline)
+                            + ". Ask an admin to extend the lecture summary deadline for "
+                            + lecture.getLectureDate() + ".");
+        }
+
         LectureSummary summary = new LectureSummary();
         summary.setLecture(lecture);
         summary.setSummaryText(request.summaryText());
         summary.setSubmittedAt(DateTimeUtil.now());
         summary.setLectureEndTime(lectureEndTime);
+        // Against the normal window, not the extended one — past the extended
+        // deadline nothing is accepted, so that comparison could never be true.
         summary.setSubmittedLate(summary.getSubmittedAt()
-                .isAfter(effectiveDeadline(teacher, lecture, lectureEndTime)));
+                .isAfter(lectureEndTime.plusHours(BASE_DEADLINE_HOURS)));
 
         return summaryMapper.toLectureSummaryResponse(summaryRepository.save(summary));
     }
@@ -161,12 +186,21 @@ public class LectureSummaryServiceImpl implements LectureSummaryService {
     /** Lecture end + 24h, plus any admin-granted extension for that day. */
     private LocalDateTime effectiveDeadline(User teacher, Lecture lecture,
                                             LocalDateTime lectureEndTime) {
-        int extraHours = deadlineExtensionRepository
+        return lectureEndTime.plusHours(BASE_DEADLINE_HOURS + extraHours(teacher, lecture));
+    }
+
+    /** Whether an admin has already bought this teacher time on this lecture's day. */
+    private boolean hasExtension(User teacher, Lecture lecture) {
+        return extraHours(teacher, lecture) > 0;
+    }
+
+    /** Hours an admin added to this teacher's summary deadline for the lecture's day. */
+    private int extraHours(User teacher, Lecture lecture) {
+        return deadlineExtensionRepository
                 .findByUserAndTypeAndTargetDate(teacher, DeadlineType.LECTURE_SUMMARY,
                         lecture.getLectureDate())
                 .map(DeadlineExtension::getExtraHours)
                 .orElse(0);
-        return lectureEndTime.plusHours(BASE_DEADLINE_HOURS + extraHours);
     }
 
     private User findUserByEmail(String email) {

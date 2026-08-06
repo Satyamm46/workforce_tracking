@@ -12,12 +12,17 @@ import java.time.LocalDateTime;
  * extension granted for an earlier day buys time to fill in a form that
  * cannot be pointed at it.</p>
  *
- * @param workDate     the day the report would cover
- * @param checkoutTime when the user checked out that day
- * @param deadline     when the reporting window closes (checkout + 24h + any extension)
- * @param extraHours   hours added by an admin extension, 0 if none
- * @param markedAbsent whether the day is currently flagged absent for the missing report
- * @param overdue      whether the deadline has already passed, so the report files as late
+ * <p>Every day listed here is one the submit endpoint will accept: the two
+ * apply the same deadline test. A day whose window has closed is absent from
+ * this list entirely, because nothing but an admin extension can reopen it.</p>
+ *
+ * @param workDate      the day the report would cover
+ * @param checkoutTime  when the user checked out that day
+ * @param deadline      when the reporting window closes (checkout + 24h + any extension)
+ * @param extraHours    hours added by an admin extension, 0 if none
+ * @param markedAbsent  whether the day is currently flagged absent for the missing report
+ * @param extensionOnly whether the normal 24h window has already passed, so this
+ *                      day is open only thanks to an extension and files as late
  */
 public record OpenWorkReportDayResponse(
         LocalDate workDate,
@@ -25,6 +30,6 @@ public record OpenWorkReportDayResponse(
         LocalDateTime deadline,
         int extraHours,
         boolean markedAbsent,
-        boolean overdue
+        boolean extensionOnly
 ) {
 }

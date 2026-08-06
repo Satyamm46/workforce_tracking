@@ -168,7 +168,7 @@ const MyWorkReportsPage = () => {
                         <MenuItem key={day.workDate} value={day.workDate}>
                           {day.workDate}
                           {day.extraHours > 0 ? ` · extended +${day.extraHours}h` : ''}
-                          {day.overdue ? ' · overdue' : ''}
+                          {day.extensionOnly ? ' · files as late' : ''}
                         </MenuItem>
                       ))}
                     </TextField>
@@ -188,7 +188,7 @@ const MyWorkReportsPage = () => {
                       <Chip
                         size="small"
                         variant="outlined"
-                        color={selectedDay.overdue ? 'warning' : 'default'}
+                        color={selectedDay.extensionOnly ? 'warning' : 'default'}
                         label={`Due ${formatDateTime(selectedDay.deadline)}`}
                       />
                       {selectedDay.extraHours > 0 && (

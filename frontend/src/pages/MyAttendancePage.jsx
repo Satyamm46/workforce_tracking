@@ -274,6 +274,23 @@ const MyAttendancePage = () => {
                     )}
                   </Button>
 
+                  {/* Answers the work-end reminder. Only before the overtime
+                      window opens — once it has, the alert above owns this. */}
+                  {today.status === 'WORKING' && !today.overtimeDeadline && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<MoreTimeIcon />}
+                      onClick={handleExtendOvertime}
+                      disabled={extendingOvertime}
+                    >
+                      {extendingOvertime ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : (
+                        'Extend Work Time'
+                      )}
+                    </Button>
+                  )}
+
                   {today.status === 'CHECKED_OUT' ? (
                     <Button
                       variant="contained"

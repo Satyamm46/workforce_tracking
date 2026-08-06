@@ -19,6 +19,7 @@ import com.institute.workforce_tracking.event.LectureStartingSoonEvent;
 import com.institute.workforce_tracking.event.OvertimeCheckedOutEvent;
 import com.institute.workforce_tracking.event.OvertimeReminderEvent;
 import com.institute.workforce_tracking.event.RegistrationSubmittedEvent;
+import com.institute.workforce_tracking.event.WorkEndReminderEvent;
 import com.institute.workforce_tracking.event.WorkStartReminderEvent;
 import com.institute.workforce_tracking.repository.UserRepository;
 import com.institute.workforce_tracking.service.EmailService;
@@ -52,15 +53,19 @@ public class NotificationEventListener {
     @TransactionalEventListener
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onLectureEndingSoon(LectureEndingSoonEvent event) {
+        String message = "Your " + event.subject() + " lecture for " + event.className()
+                + " is going to end at " + event.effectiveEndTime()
+                + ". Do you want to extend the session?";
         try {
             notificationService.notifyUser(
-                    event.teacherId(), event.teacherEmail(), NotificationType.LECTURE_ENDING,
-                    "Your " + event.subject() + " lecture for " + event.className()
-                            + " is going to end at " + event.effectiveEndTime()
-                            + ". Do you want to extend the session?");
+                    event.teacherId(), event.teacherEmail(),
+                    NotificationType.LECTURE_ENDING, message);
         } catch (Exception ex) {
             log.error("Failed to create lecture-ending notification", ex);
         }
+        // By email too, matching the starting-soon reminder: a teacher mid-class
+        // is the least likely person to be watching the app.
+        emailService.send(event.teacherEmail(), "Your lecture is about to end", message);
     }
 
     /** Tells the teacher their never-started class was cancelled, with the fix. */
@@ -159,6 +164,21 @@ public class NotificationEventListener {
             log.error("Failed to create work-start reminder", ex);
         }
         emailService.send(event.email(), "Your work day starts soon", message);
+    }
+
+    /** Heads-up before the user's declared work-end time — in-app and email. */
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onWorkEndReminder(WorkEndReminderEvent event) {
+        String message = "Your work day is going to end at " + event.plannedEnd()
+                + ". Do you want to extend your work time, or check out?";
+        try {
+            notificationService.notifyUser(
+                    event.userId(), event.email(), NotificationType.WORK_END_REMINDER, message);
+        } catch (Exception ex) {
+            log.error("Failed to create work-end reminder", ex);
+        }
+        emailService.send(event.email(), "Your work day is about to end", message);
     }
 
     /** Warns an employee their overtime window is closing — in-app and email. */

@@ -28,6 +28,7 @@ import com.institute.workforce_tracking.event.AttendanceAutoActionEvent;
 import com.institute.workforce_tracking.event.LateArrivalEvent;
 import com.institute.workforce_tracking.event.OvertimeCheckedOutEvent;
 import com.institute.workforce_tracking.event.OvertimeReminderEvent;
+import com.institute.workforce_tracking.event.WorkEndReminderEvent;
 import com.institute.workforce_tracking.event.WorkStartReminderEvent;
 import com.institute.workforce_tracking.exception.BadRequestException;
 import com.institute.workforce_tracking.exception.ResourceNotFoundException;
@@ -61,6 +62,14 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     /** Warn the employee this many minutes before their overtime window closes. */
     private static final int OVERTIME_WARN_LEAD_MINUTES = 5;
+
+    /**
+     * Warn the employee this many minutes before their declared work day ends.
+     * Longer than the overtime lead: this one asks for a decision (extend or
+     * wrap up), where the overtime warning only announces an imminent
+     * auto-checkout.
+     */
+    private static final int END_REMINDER_LEAD_MINUTES = 10;
 
     private final AttendanceRepository attendanceRepository;
     private final WorkBreakRepository workBreakRepository;
@@ -378,7 +387,19 @@ public class AttendanceServiceImpl implements AttendanceService {
 
             LocalDateTime plannedEndToday = today.atTime(plannedEnd);
             if (now.isBefore(plannedEndToday)) {
-                continue; // not into overtime yet
+                // Not into overtime yet — but close enough to warn, once, so
+                // the decision to extend can be made before the day runs out
+                // rather than after the auto-checkout clock has started.
+                if (!attendance.isEndReminderSent()
+                        && !now.isBefore(plannedEndToday.minusMinutes(END_REMINDER_LEAD_MINUTES))) {
+                    eventPublisher.publishEvent(new WorkEndReminderEvent(
+                            user.getId(), user.getEmail(), user.getFullName(), plannedEnd));
+                    attendance.setEndReminderSent(true);
+                    attendanceRepository.save(attendance);
+                    actions++;
+                    log.info("Work-end reminder for {} (day ends {})", user.getEmail(), plannedEnd);
+                }
+                continue;
             }
 
             // First time past the planned end: open a fresh window from now.
@@ -423,20 +444,46 @@ public class AttendanceServiceImpl implements AttendanceService {
     public AttendanceResponse extendOvertime(String email) {
         Attendance attendance = getTodayAttendance(email);
 
-        if (attendance.getStatus() != AttendanceStatus.WORKING
-                || attendance.getOvertimeDeadline() == null) {
-            throw new BadRequestException("You are not currently in an overtime window.");
+        if (attendance.getStatus() != AttendanceStatus.WORKING) {
+            throw new BadRequestException("You must be working to extend your work time.");
         }
 
-        // Extend from whichever is later — the current deadline or now — so a
+        // Answering the work-end reminder means extending before the window
+        // exists. The window that would open on its own at the planned end
+        // stands in for it, so extending early lands on exactly the deadline
+        // the user would have reached by waiting and extending at the last
+        // minute — without having to be at their desk for it.
+        LocalDateTime current = attendance.getOvertimeDeadline() != null
+                ? attendance.getOvertimeDeadline()
+                : pendingOvertimeStart(attendance).plusMinutes(overtimeWindowMinutes);
+
+        // Extend from whichever is later — that deadline or now — so a
         // just-missed window still yields a full fresh block.
-        LocalDateTime base = DateTimeUtil.now().isAfter(attendance.getOvertimeDeadline())
-                ? DateTimeUtil.now() : attendance.getOvertimeDeadline();
+        LocalDateTime base = DateTimeUtil.now().isAfter(current) ? DateTimeUtil.now() : current;
         attendance.setOvertimeDeadline(base.plusMinutes(overtimeWindowMinutes));
         attendance.setOvertimeReminderSent(false);
 
         log.info("Overtime extended for {} until {}", email, attendance.getOvertimeDeadline());
         return attendanceMapper.toAttendanceResponse(attendanceRepository.save(attendance));
+    }
+
+    /**
+     * When this day's overtime window would open by itself: the declared
+     * logout time, or now for anyone already past it. Only meaningful for
+     * users who file a plan — without one there is no end to work past, so
+     * there is nothing to extend.
+     */
+    private LocalDateTime pendingOvertimeStart(Attendance attendance) {
+        LocalDateTime now = DateTimeUtil.now();
+        LocalTime plannedEnd = workPlanRepository
+                .findByUserAndPlanDate(attendance.getUser(), attendance.getWorkDate())
+                .map(WorkPlan::getPlannedEndTime)
+                .orElseThrow(() -> new BadRequestException(
+                        "You have no work schedule for today, so there is no end time to "
+                                + "extend. Check out when you are done."));
+
+        LocalDateTime plannedEndToday = attendance.getWorkDate().atTime(plannedEnd);
+        return now.isAfter(plannedEndToday) ? now : plannedEndToday;
     }
 
     /**

@@ -484,7 +484,7 @@ const MyLecturesPage = () => {
             onChange={(e) => setSummaryText(e.target.value)}
             required fullWidth multiline minRows={4}
             slotProps={{ htmlInput: { maxLength: 2000 } }}
-            helperText={`${summaryText.length}/2000 — Submit within 24h of the lecture ending.`}
+            helperText={`${summaryText.length}/2000 — Submit within 24h of the lecture ending. After that only an admin extension can reopen it.`}
             disabled={submittingSummary}
             sx={{ mt: 1 }}
           />
