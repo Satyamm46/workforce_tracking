@@ -71,4 +71,20 @@ public interface LectureService {
     /** Sweep: publishes ending-soon events for live lectures nearing their end. Returns how many. */
     int publishEndingReminders();
 
+    /**
+     * The authenticated teacher's lectures across a date range, for their
+     * calendar. The range is capped so the payload stays bounded.
+     */
+    java.util.List<LectureResponse> getMyCalendar(String teacherEmail, LocalDate from, LocalDate to);
+
+    /** Admin calendar: every teacher's lectures across a date range. */
+    java.util.List<LectureResponse> getCalendar(LocalDate from, LocalDate to);
+
+    /**
+     * Sweep: sends each teacher one "classes tomorrow" digest covering their
+     * scheduled lectures for the next day. Idempotent per lecture. Returns
+     * how many digests were sent.
+     */
+    int publishDayBeforeReminders();
+
 }

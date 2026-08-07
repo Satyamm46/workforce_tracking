@@ -13,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.institute.workforce_tracking.entity.Lecture;
+import com.institute.workforce_tracking.entity.LectureSeries;
 import com.institute.workforce_tracking.entity.User;
 import com.institute.workforce_tracking.enums.LectureStatus;
 
@@ -102,6 +103,45 @@ public interface LectureRepository extends JpaRepository<Lecture, Long> {
     List<Lecture> findByStatusAndLectureDateBetween(
             LectureStatus status, LocalDate startDate, LocalDate endDate);
 
+    /**
+     * One teacher's lectures across a date range, for their calendar month.
+     * Unpaged on purpose: a bounded range (the service caps it) of one
+     * teacher's classes is a small, whole-month result the grid renders at once.
+     */
+    List<Lecture> findByTeacherAndLectureDateBetweenOrderByLectureDateAscStartTimeAsc(
+            User teacher, LocalDate fromDate, LocalDate toDate);
 
-    
+    /** Every teacher's lectures across a date range, for the admin calendar. */
+    @EntityGraph(attributePaths = "teacher")
+    List<Lecture> findByLectureDateBetweenOrderByLectureDateAscStartTimeAsc(
+            LocalDate fromDate, LocalDate toDate);
+
+    /**
+     * Lectures on one day, in one status, still awaiting the day-before
+     * digest. The flag makes the evening sweep idempotent, so a later tick
+     * only picks up classes scheduled after the first one ran.
+     */
+    @EntityGraph(attributePaths = "teacher")
+    List<Lecture> findByLectureDateAndStatusAndDayBeforeReminderSentFalse(
+            LocalDate lectureDate, LectureStatus status);
+
+    /**
+     * A series' occurrences from a date onward in a given status. Backs
+     * stopping a series: future occurrences are cancelled, past ones are left
+     * alone so reports stay honest.
+     */
+    List<Lecture> findBySeriesAndLectureDateGreaterThanEqualAndStatus(
+            LectureSeries series, LocalDate fromDate, LectureStatus status);
+
+    /**
+     * All lectures in a status on one specific day — the bounded form of
+     * {@link #findByStatus(LectureStatus)} for sweeps that only ever care
+     * about today. Materialised series push the SCHEDULED row count weeks into
+     * the future, so the per-minute sweeps must not scan all of it.
+     */
+    List<Lecture> findByStatusAndLectureDate(LectureStatus status, LocalDate lectureDate);
+
+    /** All lectures in a status on or before a day, for the missed sweep. */
+    List<Lecture> findByStatusAndLectureDateLessThanEqual(
+            LectureStatus status, LocalDate lectureDate);
 }

@@ -16,6 +16,7 @@ import com.institute.workforce_tracking.event.LeaveDecidedEvent;
 import com.institute.workforce_tracking.event.LectureEndingSoonEvent;
 import com.institute.workforce_tracking.event.LectureMissedEvent;
 import com.institute.workforce_tracking.event.LectureStartingSoonEvent;
+import com.institute.workforce_tracking.event.LecturesTomorrowEvent;
 import com.institute.workforce_tracking.event.OvertimeCheckedOutEvent;
 import com.institute.workforce_tracking.event.OvertimeReminderEvent;
 import com.institute.workforce_tracking.event.RegistrationSubmittedEvent;
@@ -208,6 +209,59 @@ public class NotificationEventListener {
         } catch (Exception ex) {
             log.error("Failed to create overtime-checkout notification", ex);
         }
+    }
+
+    /**
+     * Evening digest of tomorrow's classes — in-app and email.
+     *
+     * <p>The two channels carry different depth: the notification row is
+     * capped at 500 characters, so the in-app text is one condensed line cut
+     * with "…and N more" when needed, while the email lists every class in
+     * full.</p>
+     */
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onLecturesTomorrow(LecturesTomorrowEvent event) {
+        int count = event.entries().size();
+        String inApp = buildCondensedDigest(event, count);
+        try {
+            notificationService.notifyUser(
+                    event.teacherId(), event.teacherEmail(),
+                    NotificationType.LECTURE_TOMORROW, inApp);
+        } catch (Exception ex) {
+            log.error("Failed to create classes-tomorrow notification", ex);
+        }
+
+        StringBuilder body = new StringBuilder("Hi ").append(event.teacherFullName())
+                .append(",\n\nYou have ").append(count)
+                .append(count == 1 ? " class" : " classes")
+                .append(" scheduled tomorrow (").append(event.date()).append("):\n\n");
+        for (String entry : event.entries()) {
+            body.append("  - ").append(entry).append('\n');
+        }
+        body.append("\nSee you in class!");
+        emailService.send(event.teacherEmail(), "Your classes tomorrow", body.toString());
+    }
+
+    /** The in-app line, kept under the notification column's 500-char cap. */
+    private static String buildCondensedDigest(LecturesTomorrowEvent event, int count) {
+        StringBuilder text = new StringBuilder("You have ").append(count)
+                .append(count == 1 ? " class" : " classes")
+                .append(" tomorrow: ");
+        int included = 0;
+        for (String entry : event.entries()) {
+            String next = (included == 0 ? "" : "; ") + entry;
+            // Leave room for the worst-case "; …and NN more" suffix.
+            if (text.length() + next.length() > 480) {
+                break;
+            }
+            text.append(next);
+            included++;
+        }
+        if (included < count) {
+            text.append("; …and ").append(count - included).append(" more");
+        }
+        return text.toString();
     }
 
     /**

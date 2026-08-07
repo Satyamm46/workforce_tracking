@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.institute.workforce_tracking.constants.AppConstants;
 import com.institute.workforce_tracking.service.LectureService;
 
 /**
@@ -43,6 +44,24 @@ public class LectureStatusScheduler {
         if (startReminders > 0 || completed > 0 || endReminders > 0) {
             log.info("Lecture sweep: {} start reminders, {} completed/missed, {} end reminders",
                     startReminders, completed, endReminders);
+        }
+    }
+
+    /**
+     * The day-before digest, every half hour between 19:00 and 22:30.
+     *
+     * <p>The first tick sends each teacher one digest of tomorrow's classes;
+     * later ticks only pick up lectures scheduled after it, which the
+     * per-lecture sent flag makes naturally idempotent. Unlike the per-minute
+     * sweep above, this is a wall-clock job, so the {@code zone} attribute is
+     * mandatory — without it the cron would follow the server's default zone,
+     * not the institute's.</p>
+     */
+    @Scheduled(cron = "0 0/30 19-22 * * *", zone = AppConstants.DEFAULT_TIME_ZONE)
+    public void sweepDayBeforeReminders() {
+        int digests = runSweep("day-before-reminder", lectureService::publishDayBeforeReminders);
+        if (digests > 0) {
+            log.info("Day-before digest: {} teacher(s) notified", digests);
         }
     }
 

@@ -13,6 +13,9 @@ public enum NotificationType {
     /** A teacher's lecture starts in a few minutes. */
     LECTURE_STARTING,
 
+    /** Evening digest of a teacher's classes scheduled for tomorrow. */
+    LECTURE_TOMORROW,
+
     /** A lecture was cancelled because the teacher never started it. */
     LECTURE_MISSED,
 

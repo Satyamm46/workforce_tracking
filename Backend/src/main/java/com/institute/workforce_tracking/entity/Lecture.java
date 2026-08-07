@@ -39,6 +39,17 @@ public class Lecture extends BaseEntity {
     @JoinColumn(name = "teacher_user_id", nullable = false)
     private User teacher;
 
+    /**
+     * The repeating series that generated this lecture; null for a one-off.
+     *
+     * <p>Only a back-reference: once generated, an occurrence is an ordinary
+     * lecture and behaves like any other. The link exists so stopping a series
+     * can find and cancel its future occurrences.</p>
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "series_id")
+    private LectureSeries series;
+
     /** Subject being taught (e.g. "Mathematics"). */
     @Column(nullable = false, length = 100)
     private String subject;
@@ -76,6 +87,16 @@ public class Lecture extends BaseEntity {
      */
     @Column(nullable = false)
     private boolean startReminderSent = false;
+
+    /**
+     * Whether this lecture has been included in its teacher's "classes
+     * tomorrow" digest. Sent the evening before, so a teacher can plan the
+     * day — unlike {@link #startReminderSent}, which fires five minutes before
+     * the class and is only useful for someone already at their desk.
+     */
+    @Column(name = "day_before_reminder_sent", nullable = false)
+    @org.hibernate.annotations.ColumnDefault("false")
+    private boolean dayBeforeReminderSent = false;
 
     /**
      * Minutes added by extensions (tracking milestone; capped at 30).

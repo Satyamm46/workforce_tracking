@@ -95,6 +95,30 @@ public class LectureController {
         return ResponseEntity.ok(ApiResponse.of("Lectures retrieved for " + effectiveDate, lectures));
 
     }
+    /** The authenticated teacher's calendar: their lectures in a date range. */
+    @GetMapping("/me/calendar")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<ApiResponse<java.util.List<LectureResponse>>> getMyCalendar(
+            Authentication authentication,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        java.util.List<LectureResponse> lectures =
+                lectureService.getMyCalendar(authentication.getName(), from, to);
+        return ResponseEntity.ok(ApiResponse.of("Calendar retrieved", lectures));
+    }
+
+    /** Admin calendar: every teacher's lectures in a date range. */
+    @GetMapping("/calendar")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.List<LectureResponse>>> getCalendar(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        java.util.List<LectureResponse> lectures = lectureService.getCalendar(from, to);
+        return ResponseEntity.ok(ApiResponse.of("Calendar retrieved", lectures));
+    }
+
     /** Reschedules one of the caller's own missed/cancelled lectures to a new slot. */
     @PatchMapping("/{id}/reschedule")
     @PreAuthorize("hasRole('TEACHER')")

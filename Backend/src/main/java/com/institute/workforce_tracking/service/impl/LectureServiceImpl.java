@@ -2,7 +2,10 @@ package com.institute.workforce_tracking.service.impl;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -23,6 +26,7 @@ import com.institute.workforce_tracking.enums.LectureStatus;
 import com.institute.workforce_tracking.event.LectureEndingSoonEvent;
 import com.institute.workforce_tracking.event.LectureMissedEvent;
 import com.institute.workforce_tracking.event.LectureStartingSoonEvent;
+import com.institute.workforce_tracking.event.LecturesTomorrowEvent;
 import com.institute.workforce_tracking.exception.BadRequestException;
 import com.institute.workforce_tracking.exception.ResourceNotFoundException;
 import com.institute.workforce_tracking.mapper.LectureMapper;
@@ -45,6 +49,13 @@ public class LectureServiceImpl implements LectureService {
     private static final int MAX_EXTENSION_MINUTES = 30;
     private static final int REMINDER_WINDOW_MINUTES = 5;
     private static final int EARLY_START_ALLOWANCE_MINUTES = 10;
+
+    /**
+     * Widest calendar range a single request may ask for — two months plus
+     * change, enough for any month view with padding, small enough that the
+     * unpaged payload stays bounded.
+     */
+    private static final int MAX_CALENDAR_RANGE_DAYS = 62;
 
     private final LectureRepository lectureRepository;
     private final UserRepository userRepository;
@@ -231,9 +242,11 @@ public class LectureServiceImpl implements LectureService {
         LocalDate today = DateTimeUtil.today();
         LocalTime now = DateTimeUtil.now().toLocalTime();
 
-        List<Lecture> startingSoon = lectureRepository.findByStatus(LectureStatus.SCHEDULED).stream()
+        // Bounded to today's rows: series materialisation keeps weeks of
+        // SCHEDULED lectures ahead, and a reminder can only ever concern today.
+        List<Lecture> startingSoon = lectureRepository
+                .findByStatusAndLectureDate(LectureStatus.SCHEDULED, today).stream()
                 .filter(lecture -> !lecture.isStartReminderSent()
-                        && lecture.getLectureDate().isEqual(today)
                         && lecture.getStartTime().isAfter(now)
                         && !lecture.getStartTime().isAfter(now.plusMinutes(REMINDER_WINDOW_MINUTES)))
                 .toList();
@@ -269,11 +282,13 @@ public class LectureServiceImpl implements LectureService {
         lectureRepository.saveAll(overdue);
 
         // Never-started lectures whose scheduled end has passed are missed —
-        // auto-cancelled, with a notification pointing at Reschedule.
-        List<Lecture> missed = lectureRepository.findByStatus(LectureStatus.SCHEDULED).stream()
+        // auto-cancelled, with a notification pointing at Reschedule. Bounded
+        // to today and earlier: future SCHEDULED rows (weeks of them, once
+        // series materialise ahead) can never be overdue.
+        List<Lecture> missed = lectureRepository
+                .findByStatusAndLectureDateLessThanEqual(LectureStatus.SCHEDULED, today).stream()
                 .filter(lecture -> lecture.getLectureDate().isBefore(today)
-                        || (lecture.getLectureDate().isEqual(today)
-                            && !lecture.getEndTime().isAfter(now)))
+                        || !lecture.getEndTime().isAfter(now))
                 .toList();
         missed.forEach(lecture -> {
             lecture.setStatus(LectureStatus.MISSED);
@@ -315,6 +330,92 @@ public class LectureServiceImpl implements LectureService {
         }
         lectureRepository.saveAll(endingSoon);
         return endingSoon.size();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LectureResponse> getMyCalendar(String teacherEmail, LocalDate from, LocalDate to) {
+        User teacher = findUserByEmail(teacherEmail);
+        validateCalendarRange(from, to);
+        return lectureRepository
+                .findByTeacherAndLectureDateBetweenOrderByLectureDateAscStartTimeAsc(teacher, from, to)
+                .stream()
+                .map(lectureMapper::toLectureResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LectureResponse> getCalendar(LocalDate from, LocalDate to) {
+        validateCalendarRange(from, to);
+        return lectureRepository
+                .findByLectureDateBetweenOrderByLectureDateAscStartTimeAsc(from, to)
+                .stream()
+                .map(lectureMapper::toLectureResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public int publishDayBeforeReminders() {
+        LocalDate tomorrow = DateTimeUtil.today().plusDays(1);
+
+        // The one-shot flag makes this idempotent per lecture: a later tick
+        // of the evening window only picks up classes scheduled after the
+        // first digest went out.
+        List<Lecture> due = lectureRepository
+                .findByLectureDateAndStatusAndDayBeforeReminderSentFalse(
+                        tomorrow, LectureStatus.SCHEDULED);
+        if (due.isEmpty()) {
+            return 0;
+        }
+
+        // One digest per teacher, classes in start order. The repository
+        // returns rows unordered, so group first and sort each group.
+        Map<Long, List<Lecture>> byTeacher = new LinkedHashMap<>();
+        for (Lecture lecture : due) {
+            byTeacher.computeIfAbsent(lecture.getTeacher().getId(),
+                    id -> new ArrayList<>()).add(lecture);
+        }
+
+        for (List<Lecture> lectures : byTeacher.values()) {
+            lectures.sort(java.util.Comparator.comparing(Lecture::getStartTime));
+            List<String> entries = lectures.stream()
+                    .map(LectureServiceImpl::formatDigestEntry)
+                    .toList();
+            User teacher = lectures.get(0).getTeacher();
+            eventPublisher.publishEvent(new LecturesTomorrowEvent(
+                    teacher.getId(),
+                    teacher.getEmail(),
+                    teacher.getFullName(),
+                    tomorrow,
+                    entries));
+            lectures.forEach(lecture -> lecture.setDayBeforeReminderSent(true));
+        }
+        lectureRepository.saveAll(due);
+        return byTeacher.size();
+    }
+
+    /** One digest line: {@code "10:00–11:00  Maths · Grade 10 (B)"}. */
+    private static String formatDigestEntry(Lecture lecture) {
+        StringBuilder entry = new StringBuilder()
+                .append(lecture.getStartTime()).append('–').append(lecture.getEndTime())
+                .append("  ").append(lecture.getSubject())
+                .append(" · ").append(lecture.getClassName());
+        if (lecture.getBatch() != null) {
+            entry.append(" (").append(lecture.getBatch()).append(')');
+        }
+        return entry.toString();
+    }
+
+    private void validateCalendarRange(LocalDate from, LocalDate to) {
+        if (from == null || to == null || to.isBefore(from)) {
+            throw new BadRequestException("A valid from/to date range is required.");
+        }
+        if (from.plusDays(MAX_CALENDAR_RANGE_DAYS).isBefore(to)) {
+            throw new BadRequestException("Calendar range cannot exceed "
+                    + MAX_CALENDAR_RANGE_DAYS + " days.");
+        }
     }
 
     /** Treats blank or empty batch input as "no batch" (stored as null). */

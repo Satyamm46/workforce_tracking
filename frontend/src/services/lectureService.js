@@ -49,6 +49,16 @@ export const rescheduleLecture = (id, payload) => {
   return apiClient.patch(`${API_PATHS.LECTURES}/${id}/reschedule`, payload);
 };
 
+/** Teacher: fetches own lectures across a date range, for the calendar. */
+export const getMyCalendar = (from, to) => {
+  return apiClient.get(API_PATHS.LECTURES_ME_CALENDAR, { params: { from, to } });
+};
+
+/** Admin: fetches every teacher's lectures across a date range. */
+export const getCalendar = (from, to) => {
+  return apiClient.get(API_PATHS.LECTURES_CALENDAR, { params: { from, to } });
+};
+
 export const lectureService = {
   scheduleLecture,
   getMyUpcomingLectures,
@@ -58,4 +68,6 @@ export const lectureService = {
   endLecture,
   extendLecture,
   rescheduleLecture,
+  getMyCalendar,
+  getCalendar,
 };

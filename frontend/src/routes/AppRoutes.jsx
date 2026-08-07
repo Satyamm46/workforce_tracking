@@ -22,6 +22,8 @@ const MyLeavesPage = lazy(() => import('../pages/MyLeavesPage'));
 const LeaveAdminPage = lazy(() => import('../pages/LeaveAdminPage'));
 const MyLecturesPage = lazy(() => import('../pages/MyLecturesPage'));
 const LectureAdminPage = lazy(() => import('../pages/LectureAdminPage'));
+const MyCalendarPage = lazy(() => import('../pages/MyCalendarPage'));
+const LectureCalendarAdminPage = lazy(() => import('../pages/LectureCalendarAdminPage'));
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
 const ReportsPage = lazy(() => import('../pages/ReportsPage'));
 const UsersPage = lazy(() => import('../pages/UsersPage'));
@@ -60,6 +62,8 @@ const AppRoutes = () => {
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<HealthPage />} />
           <Route path="/lectures" element={<MyLecturesPage />} />
+          <Route path="/calendar" element={<MyCalendarPage />} />
+          <Route path="/admin/lecture-calendar" element={<LectureCalendarAdminPage />} />
           <Route path="/admin/dashboard" element={<DashboardPage />} />
           <Route path="/admin/attendance" element={<AttendanceAdminPage />} />
           <Route path="/admin/leaves" element={<LeaveAdminPage />} />

@@ -37,6 +37,12 @@ export const API_PATHS = Object.freeze({
   /** Lecture endpoints. */
   LECTURES: '/v1/lectures',
   LECTURES_ME: '/v1/lectures/me',
+  LECTURES_ME_CALENDAR: '/v1/lectures/me/calendar',
+  LECTURES_CALENDAR: '/v1/lectures/calendar',
+
+  /** Lecture series (repeating classes) endpoints. */
+  LECTURE_SERIES: '/v1/lecture-series',
+  LECTURE_SERIES_ME: '/v1/lecture-series/me',
 
   /** Notification endpoints. */
   NOTIFICATIONS_ME: '/v1/notifications/me',

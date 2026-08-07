@@ -5,12 +5,14 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -23,6 +25,7 @@ import {
   Typography,
 } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
+import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import CancelIcon from '@mui/icons-material/Cancel';
 import StopIcon from '@mui/icons-material/Stop';
@@ -32,6 +35,7 @@ import NoteAltIcon from '@mui/icons-material/NoteAlt';
 import MainLayout from '../layouts/MainLayout';
 import LectureStatusChip from '../components/LectureStatusChip';
 import { lectureService } from '../services/lectureService';
+import { lectureSeriesService } from '../services/lectureSeriesService';
 import { lectureSummaryService } from '../services/lectureSummaryService';
 import { formatMinutes, formatTimeOfDay, minutesBetweenTimes } from '../utils/formatters';
 
@@ -56,6 +60,27 @@ const INITIAL_FORM = {
   endTime: '',
 };
 
+/** Weekday toggle options, Monday-first, matching Java's DayOfWeek names. */
+const WEEKDAY_OPTIONS = [
+  { value: 'MONDAY', label: 'Mon' },
+  { value: 'TUESDAY', label: 'Tue' },
+  { value: 'WEDNESDAY', label: 'Wed' },
+  { value: 'THURSDAY', label: 'Thu' },
+  { value: 'FRIDAY', label: 'Fri' },
+  { value: 'SATURDAY', label: 'Sat' },
+  { value: 'SUNDAY', label: 'Sun' },
+];
+
+/** "MONDAY" -> "Mon", for the series card. */
+const weekdayLabel = (value) =>
+  WEEKDAY_OPTIONS.find((option) => option.value === value)?.label ?? value;
+
+/** Human description of a series' rhythm, e.g. "Weekly · Mon, Wed, Fri". */
+const describeRepeat = (series) =>
+  series.frequency === 'WEEKLY'
+    ? `Weekly · ${(series.weekdays ?? []).map(weekdayLabel).join(', ')}`
+    : `Monthly · day ${series.dayOfMonth}`;
+
 /**
  * The teacher's scheduling screen: a form to plan lectures, the upcoming
  * schedule with cancellation, and live-lecture controls (end / extend).
@@ -79,6 +104,27 @@ const MyLecturesPage = () => {
   const [summaryTarget, setSummaryTarget] = useState(null); // COMPLETED lecture awaiting summary
   const [summaryText, setSummaryText] = useState('');
   const [submittingSummary, setSubmittingSummary] = useState(false);
+  const [repeat, setRepeat] = useState('NONE'); // NONE | WEEKLY | MONTHLY
+  const [weekdays, setWeekdays] = useState([]); // selected DayOfWeek names
+  const [repeatEndDate, setRepeatEndDate] = useState('');
+  const [series, setSeries] = useState([]); // the teacher's active series
+  const [stoppingSeriesId, setStoppingSeriesId] = useState(null);
+  const [seriesResult, setSeriesResult] = useState(null); // create outcome banner
+
+  const loadSeries = useCallback(async () => {
+    try {
+      const response = await lectureSeriesService.getMySeries();
+      setSeries(response.data ?? []);
+    } catch {
+      // Non-fatal: the schedule table is the page's core; the series card
+      // just stays empty if this fails.
+      setSeries([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSeries();
+  }, [loadSeries]);
 
   const loadLectures = useCallback(async (pageNumber) => {
     setLoading(true);
@@ -105,9 +151,32 @@ const MyLecturesPage = () => {
     event.preventDefault();
     setError(null);
     setFieldErrors([]);
+    setSeriesResult(null);
     setSubmitting(true);
     try {
-      await lectureService.scheduleLecture(form);
+      if (repeat === 'NONE') {
+        await lectureService.scheduleLecture(form);
+      } else {
+        // Repeating: one series request creates every occurrence at once.
+        // The date field doubles as the series start (and, for monthly, the
+        // day of month to repeat on).
+        const response = await lectureSeriesService.createSeries({
+          subject: form.subject,
+          className: form.className,
+          batch: form.batch,
+          startTime: form.startTime,
+          endTime: form.endTime,
+          frequency: repeat,
+          weekdays: repeat === 'WEEKLY' ? weekdays : [],
+          startDate: form.lectureDate,
+          endDate: repeatEndDate || null,
+        });
+        setSeriesResult(response.data);
+        setRepeat('NONE');
+        setWeekdays([]);
+        setRepeatEndDate('');
+        await loadSeries();
+      }
       setForm(INITIAL_FORM);
       await loadLectures(page);
     } catch (err) {
@@ -116,6 +185,25 @@ const MyLecturesPage = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleStopSeries = async (id) => {
+    setStoppingSeriesId(id);
+    setError(null);
+    try {
+      await lectureSeriesService.stopSeries(id);
+      await Promise.all([loadSeries(), loadLectures(page)]);
+    } catch (err) {
+      setError(err?.message ?? 'Failed to stop the repeating class.');
+    } finally {
+      setStoppingSeriesId(null);
+    }
+  };
+
+  const toggleWeekday = (value) => {
+    setWeekdays((prev) => (prev.includes(value)
+      ? prev.filter((day) => day !== value)
+      : [...prev, value]));
   };
 
   const handleCancel = async (id) => {
@@ -230,6 +318,17 @@ const MyLecturesPage = () => {
           </Alert>
         )}
 
+        {seriesResult && (
+          <Alert severity={seriesResult.skippedDates?.length ? 'warning' : 'success'}
+            onClose={() => setSeriesResult(null)}>
+            Repeating class created — {seriesResult.occurrencesCreated} class(es) scheduled
+            {seriesResult.skippedDates?.length > 0 && (
+              <> · skipped {seriesResult.skippedDates.length} clashing date(s):{' '}
+                {seriesResult.skippedDates.join(', ')}</>
+            )}
+          </Alert>
+        )}
+
         {/* ---- Schedule form ---- */}
         <Card elevation={2}>
           <CardContent>
@@ -254,9 +353,13 @@ const MyLecturesPage = () => {
                     disabled={submitting} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
-                  <TextField label="Date" type="date" value={form.lectureDate}
+                  <TextField
+                    label={repeat === 'NONE' ? 'Date' : 'First class'}
+                    type="date" value={form.lectureDate}
                     onChange={handleChange('lectureDate')} required fullWidth
-                    slotProps={{ inputLabel: { shrink: true } }} disabled={submitting} />
+                    slotProps={{ inputLabel: { shrink: true } }} disabled={submitting}
+                    helperText={repeat === 'MONTHLY'
+                      ? 'Repeats on this day of every month' : undefined} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
                   <TextField label="Start" type="time" value={form.startTime}
@@ -269,16 +372,97 @@ const MyLecturesPage = () => {
                     slotProps={{ inputLabel: { shrink: true } }} disabled={submitting} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 3 }}>
+                  <TextField select label="Repeat" value={repeat} fullWidth
+                    onChange={(event) => setRepeat(event.target.value)}
+                    disabled={submitting}>
+                    <MenuItem value="NONE">Does not repeat</MenuItem>
+                    <MenuItem value="WEEKLY">Weekly</MenuItem>
+                    <MenuItem value="MONTHLY">Monthly</MenuItem>
+                  </TextField>
+                </Grid>
+                {repeat === 'WEEKLY' && (
+                  <Grid size={{ xs: 12, sm: 8 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+                      Repeat on
+                    </Typography>
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                      {WEEKDAY_OPTIONS.map((option) => (
+                        <Chip
+                          key={option.value}
+                          label={option.label}
+                          color={weekdays.includes(option.value) ? 'primary' : 'default'}
+                          variant={weekdays.includes(option.value) ? 'filled' : 'outlined'}
+                          onClick={() => !submitting && toggleWeekday(option.value)}
+                        />
+                      ))}
+                    </Stack>
+                  </Grid>
+                )}
+                {repeat !== 'NONE' && (
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField label="Repeat until (optional)" type="date"
+                      value={repeatEndDate}
+                      onChange={(event) => setRepeatEndDate(event.target.value)}
+                      fullWidth disabled={submitting}
+                      slotProps={{ inputLabel: { shrink: true } }}
+                      helperText="Leave empty to repeat indefinitely" />
+                  </Grid>
+                )}
+                <Grid size={{ xs: 12, sm: 3 }}>
                   <Button type="submit" variant="contained" fullWidth
-                    startIcon={<EventIcon />} disabled={submitting}
+                    startIcon={repeat === 'NONE' ? <EventIcon /> : <EventRepeatIcon />}
+                    disabled={submitting
+                      || (repeat === 'WEEKLY' && weekdays.length === 0)}
                     sx={{ height: 56 }}>
-                    {submitting ? <CircularProgress size={22} color="inherit" /> : 'Schedule'}
+                    {submitting
+                      ? <CircularProgress size={22} color="inherit" />
+                      : repeat === 'NONE' ? 'Schedule' : 'Create Repeating Class'}
                   </Button>
                 </Grid>
               </Grid>
             </form>
           </CardContent>
         </Card>
+
+        {/* ---- Repeating classes ---- */}
+        {series.length > 0 && (
+          <Card elevation={2}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>
+                Repeating Classes
+              </Typography>
+              <Stack spacing={1}>
+                {series.map((item) => (
+                  <Stack key={item.id} direction={{ xs: 'column', sm: 'row' }}
+                    justifyContent="space-between"
+                    alignItems={{ xs: 'flex-start', sm: 'center' }}
+                    spacing={1}
+                    sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                    <Box>
+                      <Typography fontWeight={600}>
+                        {item.subject} · {item.className}{item.batch ? ` (${item.batch})` : ''}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {describeRepeat(item)} · {formatTimeOfDay(item.startTime)} –{' '}
+                        {formatTimeOfDay(item.endTime)}
+                        {item.endDate ? ` · until ${item.endDate}` : ' · no end date'}
+                      </Typography>
+                    </Box>
+                    <Button size="small" color="error" variant="outlined"
+                      startIcon={<StopIcon />}
+                      onClick={() => handleStopSeries(item.id)}
+                      disabled={stoppingSeriesId === item.id}>
+                      Stop
+                    </Button>
+                  </Stack>
+                ))}
+              </Stack>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Stopping a repeating class cancels its future lectures; past ones stay on record.
+              </Typography>
+            </CardContent>
+          </Card>
+        )}
 
         {/* ---- Upcoming lectures ---- */}
         <Paper elevation={2}>

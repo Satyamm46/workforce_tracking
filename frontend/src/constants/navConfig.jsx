@@ -8,6 +8,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import GroupsIcon from '@mui/icons-material/Groups';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import EventIcon from '@mui/icons-material/Event';
 import CoPresentIcon from '@mui/icons-material/CoPresent';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
@@ -39,6 +40,7 @@ export const NAV_SECTIONS = [
       { label: 'My Schedule', path: '/schedule', icon: EventNoteIcon, show: (user) => ['ADMIN', 'EMPLOYEE'].includes(user?.role) },
       { label: 'My Leaves', path: '/leaves', icon: BeachAccessIcon, show: (user) => !!user },
       { label: 'My Lectures', path: '/lectures', icon: SchoolIcon, show: (user) => user?.role === 'TEACHER' },
+      { label: 'My Calendar', path: '/calendar', icon: CalendarMonthIcon, show: (user) => user?.role === 'TEACHER' },
       { label: 'My Summaries', path: '/lecture-summaries', icon: DescriptionIcon, show: (user) => user?.role === 'TEACHER' },
       { label: 'My Reports', path: '/work-reports', icon: AssignmentIcon, show: (user) => ['EMPLOYEE', 'ADMIN', 'SUPER_ADMIN'].includes(user?.role) },
     ],
@@ -51,6 +53,7 @@ export const NAV_SECTIONS = [
       { label: 'Leaves', path: '/admin/leaves', icon: BeachAccessIcon, show: (user) => MANAGER_ROLES.includes(user?.role) },
       { label: 'Schedules', path: '/admin/schedules', icon: CalendarMonthIcon, show: (user) => MANAGER_ROLES.includes(user?.role) },
       { label: 'Lectures', path: '/admin/lectures', icon: CoPresentIcon, show: (user) => MANAGER_ROLES.includes(user?.role) },
+      { label: 'Lec. Calendar', path: '/admin/lecture-calendar', icon: EventIcon, show: (user) => MANAGER_ROLES.includes(user?.role) },
       { label: 'Work Reports', path: '/admin/work-reports', icon: FactCheckIcon, show: (user) => MANAGER_ROLES.includes(user?.role) },
       { label: 'Lec. Summaries', path: '/admin/lecture-summaries', icon: MenuBookIcon, show: (user) => MANAGER_ROLES.includes(user?.role) },
       { label: 'Extensions', path: '/admin/deadline-extensions', icon: MoreTimeIcon, show: (user) => MANAGER_ROLES.includes(user?.role) },
