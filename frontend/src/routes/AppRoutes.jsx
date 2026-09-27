@@ -79,16 +79,18 @@ const AppRoutes = () => {
           <Route path="/lecture-summaries" element={<MyLectureSummariesPage />} />
           <Route path="/admin/lecture-summaries" element={<LectureSummariesAdminPage />} />
           <Route path="/admin/deadline-extensions" element={<DeadlineExtensionsAdminPage />} />
+          {/* Leaves are for every role — the backend lets any authenticated
+              user request and view their own leaves, teachers included. */}
+          <Route path="/leaves" element={<MyLeavesPage />} />
         </Route>
 
-        {/* Attendance and leaves are not part of a teacher's workflow — their
-            presence is tracked through lectures. Gate the routes so teachers
-            can't reach them by URL, matching the hidden nav links. These must
-            not be duplicated in the block above: identical paths tie-break by
-            declaration order, so an ungated copy would shadow this guard. */}
+        {/* Attendance is not part of a teacher's workflow — their presence is
+            tracked through lectures. Gate the route so teachers can't reach it
+            by URL, matching the hidden nav link. It must not be duplicated in
+            the block above: identical paths tie-break by declaration order, so
+            an ungated copy would shadow this guard. */}
         <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE']} />}>
           <Route path="/attendance" element={<MyAttendancePage />} />
-          <Route path="/leaves" element={<MyLeavesPage />} />
         </Route>
 
         {/* Catch-all */}

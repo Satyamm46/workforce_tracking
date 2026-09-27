@@ -116,3 +116,13 @@ export const monthRange = (month) => {
     to: `${year}-${mm}-${String(lastDay).padStart(2, '0')}`,
   };
 };
+
+/**
+ * The current month as a "YYYY-MM" string. Reusable across calendar pages.
+ *
+ * @returns {string} current month in "YYYY-MM" format
+ */
+export const currentMonth = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+};

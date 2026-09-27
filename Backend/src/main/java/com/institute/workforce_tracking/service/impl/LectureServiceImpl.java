@@ -35,6 +35,7 @@ import com.institute.workforce_tracking.repository.UserRepository;
 import com.institute.workforce_tracking.service.LectureService;
 import com.institute.workforce_tracking.util.DateTimeUtil;
 import com.institute.workforce_tracking.util.PageUtils;
+import com.institute.workforce_tracking.util.StringUtils;
 
 /**
  * Default implementation of {@link LectureService}.
@@ -94,7 +95,7 @@ public class LectureServiceImpl implements LectureService {
         lecture.setTeacher(teacher);
         lecture.setSubject(request.subject().trim());
         lecture.setClassName(request.className().trim());
-        lecture.setBatch(normalizeBatch(request.batch()));
+        lecture.setBatch(StringUtils.normalizeBatch(request.batch()));
         lecture.setLectureDate(request.lectureDate());
         lecture.setStartTime(request.startTime());
         lecture.setEndTime(request.endTime());
@@ -418,15 +419,6 @@ public class LectureServiceImpl implements LectureService {
         }
     }
 
-    /** Treats blank or empty batch input as "no batch" (stored as null). */
-    private String normalizeBatch(String batch) {
-        if (batch == null || batch.isBlank()) {
-            return null;
-        }
-        return batch.trim();
-    }
-
-    /** Loads a lecture, treating other teachers' lectures as nonexistent. */
     private Lecture findOwnedLecture(String teacherEmail, Long lectureId) {
         User teacher = findUserByEmail(teacherEmail);
         Lecture lecture = lectureRepository.findById(lectureId)

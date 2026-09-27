@@ -17,13 +17,7 @@ import {
 import MainLayout from '../layouts/MainLayout';
 import LectureCalendar from '../components/LectureCalendar';
 import { lectureService } from '../services/lectureService';
-import { monthRange } from '../utils/formatters';
-
-/** The current month as a "YYYY-MM" string. */
-const currentMonth = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-};
+import { currentMonth, monthRange } from '../utils/formatters';
 
 const INITIAL_SCHEDULE_FORM = {
   subject: '',

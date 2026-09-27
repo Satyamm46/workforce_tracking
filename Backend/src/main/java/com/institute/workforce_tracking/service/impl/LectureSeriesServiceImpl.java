@@ -23,6 +23,7 @@ import com.institute.workforce_tracking.repository.LectureSeriesRepository;
 import com.institute.workforce_tracking.repository.UserRepository;
 import com.institute.workforce_tracking.service.LectureSeriesService;
 import com.institute.workforce_tracking.util.DateTimeUtil;
+import com.institute.workforce_tracking.util.StringUtils;
 
 /**
  * Default implementation of {@link LectureSeriesService}.
@@ -73,7 +74,7 @@ public class LectureSeriesServiceImpl implements LectureSeriesService {
         series.setTeacher(teacher);
         series.setSubject(request.subject().trim());
         series.setClassName(request.className().trim());
-        series.setBatch(normalizeBatch(request.batch()));
+        series.setBatch(StringUtils.normalizeBatch(request.batch()));
         series.setStartTime(request.startTime());
         series.setEndTime(request.endTime());
         series.setFrequency(request.frequency());
@@ -171,7 +172,7 @@ public class LectureSeriesServiceImpl implements LectureSeriesService {
             return 0; // already topped up, or the series has run out
         }
 
-        int created = 0;
+        List<Lecture> toSave = new ArrayList<>();
         for (LocalDate date : occurrenceDates(series, from, to)) {
             if (lectureRepository.existsConflictingLecture(
                     series.getTeacher(), date, series.getStartTime(), series.getEndTime())) {
@@ -188,13 +189,13 @@ public class LectureSeriesServiceImpl implements LectureSeriesService {
             lecture.setStartTime(series.getStartTime());
             lecture.setEndTime(series.getEndTime());
             lecture.setStatus(LectureStatus.SCHEDULED);
-            lectureRepository.save(lecture);
-            created++;
+            toSave.add(lecture);
         }
 
+        lectureRepository.saveAll(toSave);
         series.setMaterializedThrough(to);
         lectureSeriesRepository.save(series);
-        return created;
+        return toSave.size();
     }
 
     /** The dates in [from, to] this series lands on, in order. */
@@ -245,14 +246,6 @@ public class LectureSeriesServiceImpl implements LectureSeriesService {
                         + MAX_END_DATE_MONTHS + " months away.");
             }
         }
-    }
-
-    /** Treats blank or empty batch input as "no batch" (stored as null). */
-    private String normalizeBatch(String batch) {
-        if (batch == null || batch.isBlank()) {
-            return null;
-        }
-        return batch.trim();
     }
 
     private User findUserByEmail(String email) {

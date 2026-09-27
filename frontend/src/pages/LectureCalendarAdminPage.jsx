@@ -13,13 +13,7 @@ import {
 import MainLayout from '../layouts/MainLayout';
 import LectureCalendar from '../components/LectureCalendar';
 import { lectureService } from '../services/lectureService';
-import { formatTimeOfDay, monthRange } from '../utils/formatters';
-
-/** The current month as a "YYYY-MM" string. */
-const currentMonth = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-};
+import { currentMonth, formatTimeOfDay, monthRange } from '../utils/formatters';
 
 /**
  * Admin view of every teacher's classes on one month grid, with a teacher
