@@ -13,7 +13,7 @@
  * Falls back to the local backend if the env var is not set.
  */
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'https://satyam.tail0760b7.ts.net/api';
+  import.meta.env.VITE_API_BASE_URL ?? 'https://laptop-tnvuh7oc.taile3dfcd.ts.net/api';
 
 /**
  * Default timeout (ms) applied to outgoing HTTP requests. Prevents a hung
